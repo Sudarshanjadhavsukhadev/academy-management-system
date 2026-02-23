@@ -1,0 +1,80 @@
+.progress-page {
+  padding: 20px;
+}
+
+.progress-page h2 {
+  margin-bottom: 20px;
+  
+}
+
+.progress-card {
+  background: #237983;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.progress-card h4 {
+  margin-bottom: 8px;
+  color: white;
+}
+
+.progress-bar-wrapper {
+  height: 8px;
+  background: #333;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00ffcc, #00ccff);
+}
+
+.percentage {
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: rgb(34, 32, 32);
+}
+
+.status {
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  display: inline-block;
+  color: white;
+}
+
+.status.good {
+  background: #1f8b4c;
+}
+
+.status.average {
+  background: #c28f2c;
+}
+
+.status.poor {
+  background: #b02a37;
+}
+
+.progress-actions {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+}
+
+.back-btn {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+  padding: 12px 22px;
+  border-radius: 12px;
+  border: none;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.back-btn:hover {
+  opacity: 0.9;
+}

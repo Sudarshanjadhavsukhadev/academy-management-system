@@ -1,0 +1,98 @@
+.trainer-auth-container {
+  min-height: 100vh;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trainer-auth-card {
+  background: white;
+  padding: 30px;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  box-sizing: border-box;
+}
+
+
+.trainer-auth-card h2 {
+  margin-bottom: 5px;
+  text-align: center;
+   color: #111827; /* Dark heading */
+}
+
+.trainer-auth-card p {
+  text-align: center;
+  color: #0c0c0c;
+  margin-bottom: 20px;
+}
+
+.trainer-auth-card input,
+.trainer-auth-card select {
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+}
+
+
+.trainer-auth-card button {
+  width: 100%;
+  padding: 12px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.checkbox-group {
+  margin-bottom: 16px;
+}
+
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #111827;
+  cursor: pointer;
+}
+.checkbox-group input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.auth-link {
+  margin-top: 14px;
+  font-size: 14px;
+}
+
+.auth-link a {
+  color: #4f46e5;
+  text-decoration: none;
+}
+
+/* 🔥 FORCE INPUT FIX */
+.trainer-auth-card input,
+.trainer-auth-card select {
+  pointer-events: auto !important;
+  user-select: text !important;
+  z-index: 10;
+  position: relative;
+}
+
+/* 🔥 PREVENT OVERLAY BLOCKING */
+.trainer-auth-card,
+.trainer-auth-container {
+  position: relative;
+  z-index: 1;
+}

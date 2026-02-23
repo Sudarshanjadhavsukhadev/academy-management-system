@@ -1,0 +1,180 @@
+.batches-page {
+  padding: 24px;
+  background: #f1f5f9;
+  min-height: 100vh;
+}
+
+/* ===== HEADER ===== */
+.batches-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.batches-header h1 {
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+/* ===== CONTROLS ===== */
+.controls {
+  display: flex;
+  gap: 12px;
+}
+
+.controls input {
+  width: 220px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #cbd5f5;
+  background: white;
+}
+
+.add-btn {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.delete-btn {
+  background: linear-gradient(135deg, #f87171, #ef4444);
+  color: white;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.delete-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ===== TABLE ===== */
+.table-wrapper {
+  background: white;
+  border-radius: 18px;
+  overflow-x: auto;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.batches-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.batches-table thead {
+  background: linear-gradient(180deg, #eef2ff, #f8fafc);
+}
+
+.batches-table th {
+  padding: 16px;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #1e293b;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.batches-table td {
+  padding: 16px;
+  font-size: 14px;
+  color: #0f172a;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.batches-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+/* ===== STATUS ===== */
+.status {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status.active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status.inactive {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ===== DELETE ===== */
+.row-delete {
+  background: transparent;
+  color: #ef4444;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.row-delete:hover {
+  text-decoration: underline;
+}
+
+.no-data {
+  text-align: center;
+  padding: 30px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* ===== DAYS SECTION ===== */
+
+.days-section {
+  margin-top: 25px;
+}
+
+.days-section h4 {
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #333;
+}
+
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+/* Hide default checkbox */
+.day-card input {
+  display: none;
+}
+
+.day-card {
+  background: #f4f6fb;
+  padding: 10px 0;
+  text-align: center;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 500;
+  border: 2px solid transparent;
+  transition: all 0.25s ease;
+}
+
+.day-card:hover {
+  background: #e6e9ff;
+}
+
+/* Selected State */
+.selected-day {
+  background: linear-gradient(135deg, #6c63ff, #5a54e6);
+  color: white;
+  border: 2px solid #5a54e6;
+  transform: scale(1.05);
+}

@@ -1,0 +1,11 @@
+.trainer-layout {
+  min-height: 100vh;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+}
+
+.trainer-content {
+  padding: 16px;
+  flex: 1;
+}

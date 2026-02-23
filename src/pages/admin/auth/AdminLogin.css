@@ -1,0 +1,134 @@
+/* ===== PAGE ===== */
+.admin-login-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+/* ===== CARD ===== */
+.login-card {
+  background: white;
+  padding: 34px;
+  width: 100%;
+  max-width: 380px;
+  border-radius: 22px;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.35);
+  animation: fadeUp 0.4s ease;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== HEADER ===== */
+.login-card h2 {
+  font-size: 26px;
+  font-weight: 900;
+  color: #0f172a;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.login-card p {
+  font-size: 14px;
+  color: #64748b;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+/* ===== FORM ===== */
+.login-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-card input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1.5px solid #c7d2fe;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.25s ease;
+}
+
+.login-card input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15);
+}
+
+/* ===== PASSWORD ===== */
+.password-field {
+  position: relative;
+  width: 100%;
+}
+
+.password-field span {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-weight: 700;
+  color: #4f46e5;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ===== BUTTON ===== */
+.login-card button {
+  width: 100%;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+  padding: 14px;
+  border-radius: 14px;
+  border: none;
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.login-card button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 35px rgba(79, 70, 229, 0.45);
+}
+
+.login-card button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* ===== ERROR ===== */
+.error {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ===== LINKS ===== */
+.links {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.links a {
+  font-size: 14px;
+  color: #4f46e5;
+  text-decoration: none;
+  font-weight: 600;
+}

@@ -1,0 +1,257 @@
+/* ROOT */
+.user-app {
+  background: #f4f6fb;
+  min-height: 100vh;
+  padding-bottom: 90px;
+  font-family: system-ui, -apple-system;
+}
+
+/* HEADER */
+.user-header {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+  padding: 22px;
+  border-radius: 0 0 24px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 20px 40px rgba(79, 70, 229, 0.35);
+}
+
+.brand h2 {
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.brand span {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.user-avatar {
+  background: rgba(255,255,255,0.25);
+  padding: 10px;
+  border-radius: 50%;
+  font-size: 20px;
+}
+
+/* STATS */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  padding: 20px;
+  margin-top: -18px;
+}
+
+.stat-card {
+  background: white;
+  padding: 18px;
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
+  transition: 0.3s;
+  cursor: pointer;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+}
+
+.stat-card p {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.stat-card h3 {
+  font-size: 20px;
+  font-weight: 900;
+  margin-top: 6px;
+}
+
+.stat-card.success h3 {
+  color: #16a34a;
+}
+
+/* SECTION */
+.section {
+  padding: 0 20px;
+  margin-bottom: 26px;
+}
+
+.section h4 {
+  font-size: 17px;
+  font-weight: 900;
+  margin-bottom: 14px;
+  color: #0f100f;
+}
+
+/* COURSE CARD */
+.course-card {
+  background: white;
+  padding: 18px;
+  border-radius: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+  transition: 0.3s;
+}
+
+.course-card:hover {
+  transform: translateY(-5px);
+}
+
+.course-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.course-card h5 {
+  font-size: 16px;
+  font-weight: 900;
+  color: #0f100f;
+}
+
+.course-card p {
+  font-size: 13px;
+  color: #475569;
+  margin-top: 4px;
+}
+
+/* BADGES */
+.badge {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.badge.active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge.completed {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+/* PROGRESS */
+.progress {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4f46e5, #6366f1);
+}
+
+.progress-bar.done {
+  width: 100%;
+  background: #22c55e;
+}
+
+/* BUTTONS */
+.primary-btn,
+.secondary-btn {
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px;
+  border-radius: 14px;
+  border: none;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.primary-btn {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+}
+
+.secondary-btn {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+/* LIST */
+.list-card {
+  background: white;
+  padding: 14px;
+  border-radius: 16px;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.1);
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #000;
+}
+
+.list-card.live {
+  border-left: 5px solid #ef4444;
+  color: #000;
+}
+
+/* ANNOUNCEMENT */
+.announcement {
+  background: #eef2ff;
+  padding: 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  color: #3730a3;
+}
+
+/* BOTTOM NAV */
+.bottom-nav {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  background: white;
+  border-radius: 22px;
+  padding: 12px 6px;
+  display: flex;
+  justify-content: space-around;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+  z-index: 100;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.nav-item svg {
+  font-size: 22px;
+}
+
+.nav-item.active {
+  color: #4f46e5;
+}
+
+.nav-item.active svg {
+  transform: scale(1.15);
+}
+
+.nav-item:hover {
+  color: #4f46e5;
+}
+.nav-item.active {
+  background: #eef2ff;
+  padding: 6px 12px;
+  border-radius: 14px;
+}
+.nav-item:active {
+  transform: scale(0.92);
+}
+.course-card.add-new {
+  border: 2px dashed #22c55e;
+  text-align: center;
+  cursor: pointer;
+}
