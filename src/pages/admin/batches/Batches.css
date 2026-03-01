@@ -1,7 +1,8 @@
 .batches-page {
-  padding: 24px;
-  background: #f1f5f9;
+  padding: 28px;
+  background: linear-gradient(135deg, #eef2ff, #f8fafc);
   min-height: 100vh;
+  font-family: "Inter", sans-serif;
 }
 
 /* ===== HEADER ===== */
@@ -9,62 +10,105 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 22px;
+  margin-bottom: 28px;
 }
 
 .batches-header h1 {
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 800;
   color: #0f172a;
+  letter-spacing: -0.5px;
 }
 
 /* ===== CONTROLS ===== */
 .controls {
   display: flex;
-  gap: 12px;
+  gap: 14px;
+  align-items: center;
 }
 
 .controls input {
-  width: 220px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid #cbd5f5;
+  width: 240px;
+  padding: 11px 15px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
   background: white;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.controls input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* ===== BUTTONS ===== */
+.add-btn,
+.delete-btn {
+  padding: 11px 20px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
 }
 
 .add-btn {
   background: linear-gradient(135deg, #4f46e5, #6366f1);
   color: white;
-  padding: 10px 18px;
-  border-radius: 10px;
-  border: none;
-  font-weight: 700;
-  cursor: pointer;
+}
+
+.add-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(79, 70, 229, 0.25);
 }
 
 .delete-btn {
   background: linear-gradient(135deg, #f87171, #ef4444);
   color: white;
-  padding: 10px 18px;
-  border-radius: 10px;
-  border: none;
-  font-weight: 700;
-  cursor: pointer;
+}
+
+.delete-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(239, 68, 68, 0.25);
 }
 
 .delete-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ===== BRANCH DROPDOWN ===== */
+select {
+  padding: 11px 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 220px;
+  transition: 0.2s ease;
+}
+
+select:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* ===== TABLE CARD ===== */
+.table-wrapper {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 20px;
+  overflow-x: auto;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(10px);
+  transition: 0.3s ease;
 }
 
 /* ===== TABLE ===== */
-.table-wrapper {
-  background: white;
-  border-radius: 18px;
-  overflow-x: auto;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-}
-
 .batches-table {
   width: 100%;
   border-collapse: separate;
@@ -76,28 +120,33 @@
 }
 
 .batches-table th {
-  padding: 16px;
-  font-size: 13px;
+  padding: 18px;
+  font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
-  color: #1e293b;
-  border-bottom: 1px solid #e5e7eb;
+  color: #334155;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .batches-table td {
-  padding: 16px;
+  padding: 18px;
   font-size: 14px;
   color: #0f172a;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.batches-table tbody tr {
+  transition: all 0.2s ease;
 }
 
 .batches-table tbody tr:hover {
-  background: #f8fafc;
+  background: #f1f5ff;
+  transform: scale(1.01);
 }
 
-/* ===== STATUS ===== */
+/* ===== STATUS BADGES ===== */
 .status {
-  padding: 6px 14px;
+  padding: 6px 16px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
@@ -113,68 +162,206 @@
   color: #991b1b;
 }
 
-/* ===== DELETE ===== */
+/* ===== DELETE LINK ===== */
 .row-delete {
   background: transparent;
   color: #ef4444;
   border: none;
   font-weight: 700;
   cursor: pointer;
+  transition: 0.2s;
 }
 
 .row-delete:hover {
+  color: #b91c1c;
   text-decoration: underline;
 }
 
+/* ===== EMPTY STATE ===== */
 .no-data {
   text-align: center;
-  padding: 30px;
+  padding: 40px;
   font-weight: 600;
   color: #64748b;
 }
 
 /* ===== DAYS SECTION ===== */
-
 .days-section {
-  margin-top: 25px;
+  margin-top: 28px;
 }
 
 .days-section h4 {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   font-weight: 600;
-  color: #333;
+  color: #0f172a;
 }
 
 .days-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  gap: 14px;
 }
 
-/* Hide default checkbox */
 .day-card input {
   display: none;
 }
 
 .day-card {
-  background: #f4f6fb;
-  padding: 10px 0;
+  background: #f1f5ff;
+  padding: 12px 0;
   text-align: center;
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 600;
   border: 2px solid transparent;
   transition: all 0.25s ease;
 }
 
 .day-card:hover {
-  background: #e6e9ff;
+  background: #e0e7ff;
 }
 
-/* Selected State */
 .selected-day {
-  background: linear-gradient(135deg, #6c63ff, #5a54e6);
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
   color: white;
-  border: 2px solid #5a54e6;
+  border: 2px solid #4f46e5;
   transform: scale(1.05);
+}
+
+/* ===== BRANCH SECTION ===== */
+.branch-section {
+  margin-bottom: 30px;
+}
+
+.branch-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.branch-header h2 {
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+}
+
+/* Add Branch Button */
+.add-branch-btn {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.add-branch-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(79, 70, 229, 0.25);
+}
+
+/* Branch Pills */
+.branch-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.branch-pill {
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.branch-pill:hover {
+  background: #e5e7ff;
+  border-color: #6366f1;
+}
+
+/* Active Branch */
+.active-branch {
+  background: #4f46e5;
+  color: white;
+  border-color: #4f46e5;
+  box-shadow: 0 6px 14px rgba(79, 70, 229, 0.3);
+}
+
+/* ===== BATCH SECTION ===== */
+.batch-section {
+  margin-top: 40px;
+}
+
+.batch-section h2 {
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+
+.batch-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.batch-pill {
+  padding: 10px 22px;
+  border-radius: 12px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.batch-pill:hover {
+  background: #e5e7ff;
+  border-color: #6366f1;
+}
+
+.active-batch {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  border-color: #4f46e5;
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.3);
+}
+
+/* ===== DETAILS CARD ===== */
+.batch-details-card {
+  margin-top: 30px;
+  background: white;
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.batch-details-card h3 {
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 20px;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

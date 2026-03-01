@@ -15,6 +15,9 @@ function Settings() {
     password: "",
   })
 
+  const [profileImage, setProfileImage] = useState(null)
+  const [previewImage, setPreviewImage] = useState("")
+
   const [finance, setFinance] = useState({
     currency: "INR",
     gst: "18%",
@@ -31,6 +34,69 @@ function Settings() {
       <div className="admin-container">
         <h1 className="settings-title">Settings</h1>
 
+        {/* ===== ADMIN PROFILE ===== */}
+        <div className="settings-card">
+          <h3>Admin Profile</h3>
+
+          <div className="admin-profile-grid">
+
+            {/* LEFT SIDE - IMAGE */}
+            <div className="profile-section">
+              <div className="profile-preview">
+                <img
+                  src={
+                    previewImage ||
+                    "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+                  }
+                  alt="profile"
+                />
+              </div>
+
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0]
+                  if (file) {
+                    setProfileImage(file)
+                    setPreviewImage(URL.createObjectURL(file))
+                  }
+                }}
+              />
+            </div>
+
+            {/* RIGHT SIDE - FORM */}
+            <div className="profile-form">
+              <input
+                placeholder="Admin Name"
+                value={admin.name}
+                onChange={(e) =>
+                  setAdmin({ ...admin, name: e.target.value })
+                }
+              />
+
+              <input
+                placeholder="Admin Email"
+                value={admin.email}
+                onChange={(e) =>
+                  setAdmin({ ...admin, email: e.target.value })
+                }
+              />
+
+              <input
+                type="password"
+                placeholder="New Password"
+                value={admin.password}
+                onChange={(e) =>
+                  setAdmin({ ...admin, password: e.target.value })
+                }
+              />
+
+              <button className="save-btn">Update Profile</button>
+            </div>
+
+          </div>
+        </div>
         {/* ===== ACADEMY SETTINGS ===== */}
         <div className="settings-card">
           <h3>Academy Details</h3>
@@ -69,37 +135,7 @@ function Settings() {
           <button className="save-btn">Save Academy Details</button>
         </div>
 
-        {/* ===== ADMIN PROFILE ===== */}
-        <div className="settings-card">
-          <h3>Admin Profile</h3>
 
-          <div className="settings-form">
-            <input
-              placeholder="Admin Name"
-              value={admin.name}
-              onChange={(e) =>
-                setAdmin({ ...admin, name: e.target.value })
-              }
-            />
-            <input
-              placeholder="Admin Email"
-              value={admin.email}
-              onChange={(e) =>
-                setAdmin({ ...admin, email: e.target.value })
-              }
-            />
-            <input
-              type="password"
-              placeholder="New Password"
-              value={admin.password}
-              onChange={(e) =>
-                setAdmin({ ...admin, password: e.target.value })
-              }
-            />
-          </div>
-
-          <button className="save-btn">Update Profile</button>
-        </div>
 
         {/* ===== FINANCE SETTINGS ===== */}
         <div className="settings-card">

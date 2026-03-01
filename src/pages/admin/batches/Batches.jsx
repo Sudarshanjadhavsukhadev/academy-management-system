@@ -29,13 +29,14 @@ ChartJS.register(
   Legend
 )
 
-function Batches() {
+function Batches({ openAddModal }) {
   const [batches, setBatches] = useState([])
-
+  const [selectedBranch, setSelectedBranch] = useState("")
+  const [branches, setBranches] = useState([])
   const [selected, setSelected] = useState([])
   const [search, setSearch] = useState("")
   const [showModal, setShowModal] = useState(false)
-
+  const [selectedBatch, setSelectedBatch] = useState(null)
   const [newBatch, setNewBatch] = useState({
     name: "",
     course: "",
@@ -47,15 +48,33 @@ function Batches() {
     days: [],
   })
 
-  // ✅ ADD HERE 👇
-  useEffect(() => {
-    fetchBatches()
-  }, [])
 
-  const fetchBatches = async () => {
+  const fetchBranches = async () => {
+    const { data, error } = await supabase
+      .from("branches")
+      .select("*")
+      .order("id", { ascending: true })
+
+    if (error) {
+      console.error(error)
+    } else {
+      setBranches(data)
+    }
+  }
+
+  useEffect(() => {
+    fetchBranches()
+  }, [])
+  useEffect(() => {
+    if (openAddModal) {
+      setShowModal(true)
+    }
+  }, [openAddModal])
+  const fetchBatches = async (branch) => {
     const { data, error } = await supabase
       .from("batches")
       .select("*")
+      .eq("branch", branch)
       .order("id", { ascending: true })
 
     if (error) {
@@ -79,7 +98,7 @@ function Batches() {
     if (error) {
       console.error(error)
     } else {
-      fetchBatches()
+      fetchBatches(selectedBranch)
     }
   }
 
@@ -94,17 +113,23 @@ function Batches() {
       console.error(error)
     } else {
       setSelected([])
-      fetchBatches()
+      fetchBatches(selectedBranch)
     }
   }
 
 
   const addBatch = async () => {
+    if (!selectedBranch) {
+      alert("Please select branch first")
+      return
+    }
+
     const { error } = await supabase
       .from("batches")
       .insert([
         {
           ...newBatch,
+          branch: selectedBranch, // 🔥 auto set branch
           strength: Number(newBatch.strength),
           days: newBatch.days.join(","),
         },
@@ -113,7 +138,7 @@ function Batches() {
     if (error) {
       console.error(error)
     } else {
-      fetchBatches()
+      fetchBatches(selectedBranch)
       setShowModal(false)
       setNewBatch({
         name: "",
@@ -127,7 +152,6 @@ function Batches() {
       })
     }
   }
-
 
   const filteredBatches = batches.filter(
     (b) =>
@@ -151,7 +175,11 @@ function Batches() {
             onChange={(e) => setSearch(e.target.value)}
           />
 
-          <button className="add-btn" onClick={() => setShowModal(true)}>
+          <button
+            className="add-btn"
+            disabled={!selectedBranch}
+            onClick={() => setShowModal(true)}
+          >
             + Add Batch
           </button>
 
@@ -164,84 +192,80 @@ function Batches() {
           </button>
         </div>
       </div>
+      <div className="branch-section">
+        <div className="branch-header">
+          <h2>Select Branch</h2>
+          <button className="add-branch-btn">+ Add Branch</button>
+        </div>
 
-      {/* TABLE */}
-      <div className="table-wrapper">
-        <table className="batches-table">
-          <thead>
-            <tr>
-              <th></th>
-              <th>Batch</th>
-              <th>Course</th>
-              <th>Trainer</th>
-              <th>Branch</th>
-              <th>Days</th>
-              <th>Timing</th>
-              <th>Students</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filteredBatches.map((batch) => (
-              <tr key={batch.id}>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(batch.id)}
-                    onChange={() => toggleSelect(batch.id)}
-                  />
-                </td>
-
-                <td>{batch.name}</td>
-                <td>{batch.course}</td>
-                <td>{batch.trainer}</td>
-                <td>{batch.branch}</td>
-
-                {/* ✅ Days Column */}
-                <td>
-                  {batch.days}
-                  {!batch.days?.includes("Sun") && (
-                    <span style={{ color: "red", marginLeft: "6px" }}>
-                      (Closed on Sunday)
-                    </span>
-                  )}
-                </td>
-
-                <td>{batch.timing}</td>
-                <td>{batch.strength}</td>
-
-                <td>
-                  <span
-                    className={`status ${batch.status === "Active" ? "active" : "inactive"
-                      }`}
-                  >
-                    {batch.status}
-                  </span>
-                </td>
-
-                <td>
-                  <button
-                    className="row-delete"
-                    onClick={() => deleteBatch(batch.id)}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-
-            {filteredBatches.length === 0 && (
-              <tr>
-                <td colSpan="9" className="no-data">
-                  No batches found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <div className="branch-list">
+          {branches.map((branch) => (
+            <button
+              key={branch.id}
+              className={`branch-pill ${selectedBranch === branch.name ? "active-branch" : ""
+                }`}
+              onClick={() => {
+                setSelectedBranch(branch.name)
+                setSelected([])
+                fetchBatches(branch.name)
+              }}
+            >
+              {branch.name}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* BATCH PILLS */}
+      {selectedBranch ? (
+        <div className="batch-section">
+          <h2>Select Batch</h2>
+
+          <div className="batch-list">
+            {filteredBatches.map((batch) => (
+              <button
+                key={batch.id}
+                className={`batch-pill ${selectedBatch?.id === batch.id ? "active-batch" : ""
+                  }`}
+                onClick={() => setSelectedBatch(batch)}
+              >
+                {batch.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div style={{ textAlign: "center", padding: "40px" }}>
+          <h3>Please Select Branch First</h3>
+        </div>
+      )}
+
+      {/* BATCH DETAILS */}
+      {selectedBatch && (
+        <div className="batch-details-card">
+          <h3>{selectedBatch.name}</h3>
+
+          <div className="details-grid">
+            <div><strong>Course:</strong> {selectedBatch.course}</div>
+            <div><strong>Trainer:</strong> {selectedBatch.trainer}</div>
+            <div><strong>Branch:</strong> {selectedBatch.branch}</div>
+            <div><strong>Timing:</strong> {selectedBatch.timing}</div>
+            <div><strong>Students:</strong> {selectedBatch.strength}</div>
+
+            <div>
+              <strong>Status:</strong>{" "}
+              <span className={`status ${selectedBatch.status === "Active" ? "active" : "inactive"
+                }`}>
+                {selectedBatch.status}
+              </span>
+            </div>
+
+            <div>
+              <strong>Days:</strong> {selectedBatch.days}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ADD BATCH MODAL */}
       {showModal && (
@@ -270,12 +294,7 @@ function Batches() {
                     setNewBatch({ ...newBatch, trainer: e.target.value })
                   }
                 />
-                <input
-                  placeholder="Branch"
-                  onChange={(e) =>
-                    setNewBatch({ ...newBatch, branch: e.target.value })
-                  }
-                />
+
                 <input
                   placeholder="Timing (e.g. 9 AM - 11 AM)"
                   onChange={(e) =>
