@@ -13,16 +13,15 @@ function Students() {
 
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
-    phone: "",
-    course: "",
-    batch: "",
+    activity: "",
     branch: "",
-    trainer_id: "",
-
+    batch: "",
     join_date: "",
+    whatsapp: "",
+    fees: "",
+    dob: "",
+    reference: "",   // how did you hear
     status: "Active",
-
   })
   // ✅ Course Options
   const courseOptions = ["Karate", "KickBoxing", "Dance"]
@@ -180,29 +179,29 @@ function Students() {
 
 
   const handleAddStudent = async () => {
-  const { error } = await supabase
-    .from("students")
-    .insert([formData])
+    const { error } = await supabase
+      .from("students")
+      .insert([formData])
 
-  if (error) {
-    alert("Registration failed")
-    console.error(error)
-  } else {
-    alert("Student Registered Successfully!")
+    if (error) {
+      alert("Registration failed")
+      console.error(error)
+    } else {
+      alert("Student Registered Successfully!")
 
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      course: "",
-      batch: "",
-      branch: "",
-      trainer_id: "",
-      join_date: "",
-      status: "Active",
-    })
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        course: "",
+        batch: "",
+        branch: "",
+        trainer_id: "",
+        join_date: "",
+        status: "Active",
+      })
+    }
   }
-}
 
 
 
@@ -217,70 +216,107 @@ function Students() {
   )
 
   return (
-  <div className="students-page">
-    <div className="registration-card">
-      <h2>Student Registration</h2>
+    <div className="students-page">
+      <div className="registration-card">
+        <h2>Student Registration</h2>
 
-      <input
-        placeholder="Name"
-        value={formData.name}
-        onChange={(e) =>
-          setFormData({ ...formData, name: e.target.value })
-        }
-      />
+        <input
+          placeholder="Full Name"
+          value={formData.name}
+          onChange={(e) =>
+            setFormData({ ...formData, name: e.target.value })
+          }
+        />
 
-      <input
-        placeholder="Email"
-        value={formData.email}
-        onChange={(e) =>
-          setFormData({ ...formData, email: e.target.value })
-        }
-      />
+        <select
+          value={formData.activity}
+          onChange={(e) =>
+            setFormData({ ...formData, activity: e.target.value })
+          }
+        >
+          <option value="">Select Activity</option>
+          <option>Karate</option>
+          <option>Kickboxing</option>
+          <option>Dance</option>
+        </select>
 
-      <input
-        placeholder="Phone"
-        value={formData.phone}
-        onChange={(e) =>
-          setFormData({ ...formData, phone: e.target.value })
-        }
-      />
+        <select
+          value={formData.branch}
+          onChange={(e) =>
+            setFormData({ ...formData, branch: e.target.value })
+          }
+        >
+          <option value="">Select Branch</option>
+          {branches.map((branch) => (
+            <option key={branch.id} value={branch.name}>
+              {branch.name}
+            </option>
+          ))}
+        </select>
 
-      <select
-        value={formData.course}
-        onChange={(e) =>
-          setFormData({ ...formData, course: e.target.value })
-        }
-      >
-        <option value="">Select Course</option>
-        {courseOptions.map((course) => (
-          <option key={course} value={course}>
-            {course}
-          </option>
-        ))}
-      </select>
+        <input
+          placeholder="Batch"
+          value={formData.batch}
+          onChange={(e) =>
+            setFormData({ ...formData, batch: e.target.value })
+          }
+        />
 
-      <input
-        placeholder="Batch"
-        value={formData.batch}
-        onChange={(e) =>
-          setFormData({ ...formData, batch: e.target.value })
-        }
-      />
+        <label>Joining Date</label>
+        <input
+          type="date"
+          value={formData.join_date}
+          onChange={(e) =>
+            setFormData({ ...formData, join_date: e.target.value })
+          }
+        />
 
-      <input
-        type="date"
-        value={formData.join_date}
-        onChange={(e) =>
-          setFormData({ ...formData, join_date: e.target.value })
-        }
-      />
+        <input
+          placeholder="WhatsApp Number"
+          value={formData.whatsapp}
+          onChange={(e) =>
+            setFormData({ ...formData, whatsapp: e.target.value })
+          }
+        />
 
-      <button className="register-btn" onClick={handleAddStudent}>
-        Register Student
-      </button>
+        <input
+          type="number"
+          placeholder="Fees Amount"
+          value={formData.fees}
+          onChange={(e) =>
+            setFormData({ ...formData, fees: e.target.value })
+          }
+        />
+
+        <label>Birth Date</label>
+        <input
+          type="date"
+          value={formData.dob}
+          onChange={(e) =>
+            setFormData({ ...formData, dob: e.target.value })
+          }
+        />
+
+        <select
+          value={formData.reference}
+          onChange={(e) =>
+            setFormData({ ...formData, reference: e.target.value })
+          }
+        >
+          <option value="">How did you hear about us?</option>
+          <option>Instagram</option>
+          <option>Facebook</option>
+          <option>Google</option>
+          <option>Friend Referral</option>
+          <option>Walk-in</option>
+        </select>
+
+        <button className="register-btn" onClick={handleAddStudent}>
+          Register Student
+        </button>
+      </div>
     </div>
-  </div>
-)
+  )
 }
 
 export default Students

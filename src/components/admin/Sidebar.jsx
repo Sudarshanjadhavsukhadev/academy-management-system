@@ -8,10 +8,10 @@ function Sidebar() {
 
       <nav className="menu">
         <NavLink to="/admin" end>Dashboard</NavLink>
-        <NavLink to="/admin/students">Students</NavLink>
+       
 
         <NavLink to="/admin/trainers">Trainers</NavLink>
-        <NavLink to="/admin/courses">Courses</NavLink>
+        
         <NavLink to="/admin/batches">Batches</NavLink>
         <NavLink to="/admin/accounts">Accounts</NavLink>
         <NavLink to="/admin/reports">Reports</NavLink>

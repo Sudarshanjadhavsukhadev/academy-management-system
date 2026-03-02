@@ -43,6 +43,9 @@ function AdminDashboard() {
     batches: 0,
   })
   const [upcomingClasses, setUpcomingClasses] = useState([])
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [notifications, setNotifications] = useState([])
+
   // 📂 Excel Upload Handler
   const handleExcelUpload = (e) => {
     const file = e.target.files[0]
@@ -157,6 +160,39 @@ function AdminDashboard() {
     fetchStats()
   }, [])
 
+  useEffect(() => {
+    const checkBirthdays = async () => {
+      const today = new Date()
+      const day = today.getDate()
+      const month = today.getMonth() + 1
+
+      const { data } = await supabase
+        .from("students")
+        .select("name, dob")
+
+      if (!data) return
+
+      const birthdayStudents = data.filter(student => {
+        if (!student.dob) return false
+        const dob = new Date(student.dob)
+        return (
+          dob.getDate() === day &&
+          dob.getMonth() + 1 === month
+        )
+      })
+
+      if (birthdayStudents.length > 0) {
+        const messages = birthdayStudents.map(
+          s => `🎂 Today is ${s.name}'s birthday`
+        )
+        setNotifications(messages)
+        setShowNotifications(true)   // 🔥 auto open panel
+      }
+    }
+
+    checkBirthdays()
+  }, [])
+
   const saveToDatabase = async () => {
     try {
       const response = await fetch("http://localhost:5000/api/save-excel", {
@@ -212,9 +248,16 @@ function AdminDashboard() {
 
           {/* 🔔 Notification Button */}
           <div className="notification-wrapper">
-            <button className="notification-btn">
+            <button
+              className="notification-btn"
+              onClick={() => setShowNotifications(true)}
+            >
               🔔
-              <span className="notification-badge">3</span>
+              {notifications.length > 0 && (
+                <span className="notification-badge">
+                  {notifications.length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -235,6 +278,12 @@ function AdminDashboard() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
 
+            <button
+              className="shortcut-btn"
+              onClick={() => setActiveTab("batches")}
+            >
+              Update Fees Status
+            </button>
             <button
               className="shortcut-btn"
               onClick={() => setActiveTab("addStudent")}
@@ -385,6 +434,7 @@ function AdminDashboard() {
       {activeTab === "addStudent" && (
         <Students />
       )}
+
       {activeTab === "batches" && (
         <Batches openAddModal={openBatchModal} />
       )}
@@ -447,6 +497,35 @@ function AdminDashboard() {
         </div>
       )}
 
+      {showNotifications && (
+        <>
+          <div
+            className="notification-overlay"
+            onClick={() => setShowNotifications(false)}
+          ></div>
+
+          <div className="notification-panel">
+            <div className="notification-header">
+              <h3>Notifications</h3>
+              <button onClick={() => setShowNotifications(false)}>
+                ✖
+              </button>
+            </div>
+
+            <div className="notification-body">
+              {notifications.length === 0 ? (
+                <p>No new notifications</p>
+              ) : (
+                notifications.map((note, index) => (
+                  <div key={index} className="notification-item">
+                    {note}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
