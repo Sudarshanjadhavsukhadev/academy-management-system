@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import * as XLSX from "xlsx"
 import Students from "../students/Students"
 import Batches from "../batches/Batches"
-import Courses from "../courses/Courses"
+import Courses from "../courses/courses"
 import { supabase } from "../../../services/supabase"
 import {
   Chart as ChartJS,
