@@ -14,7 +14,7 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 18px 15px;
+  padding: 10px 5px;
   border-radius: 16px;
   background: linear-gradient(135deg, #2563eb, #1e40af);
   color: white;
@@ -59,7 +59,7 @@
 .student-info {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 1px;
   width: 100%;
 }
 

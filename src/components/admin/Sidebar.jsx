@@ -13,7 +13,7 @@ function Sidebar() {
         <NavLink to="/admin/trainers">Trainers</NavLink>
         
         <NavLink to="/admin/batches">Batches</NavLink>
-        <NavLink to="/admin/accounts">Accounts</NavLink>
+        
         <NavLink to="/admin/reports">Reports</NavLink>
         <NavLink to="/admin/settings">Settings</NavLink>
       </nav>

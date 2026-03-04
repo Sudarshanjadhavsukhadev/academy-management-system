@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../../../services/supabase"
+import Cropper from "react-easy-crop"
 
 import "./Students.css"
 
@@ -7,7 +8,11 @@ function Students() {
   const [students, setStudents] = useState([])
   const [selected, setSelected] = useState([])
   const [search, setSearch] = useState("")
-
+  const [imageSrc, setImageSrc] = useState(null)
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
+  const [showCropModal, setShowCropModal] = useState(false)
   // 👇 ADD THESE LINES
   const [showAddModal, setShowAddModal] = useState(false)
 
@@ -17,7 +22,7 @@ function Students() {
     branch: "",
     batch: "",
     join_date: "",
-    whatsapp: "",
+    "Whatsapp Number": "",
     fees: "",
     dob: "",
     reference: "",
@@ -34,7 +39,7 @@ function Students() {
   const [batchStats, setBatchStats] = useState([])
   const [totalStudents, setTotalStudents] = useState(0)
   const [trainers, setTrainers] = useState([])
-
+  const [batches, setBatches] = useState([])
   // 🔹 Attendance system – step 2 (branch)
   const [branches, setBranches] = useState([])
   const [selectedBranch, setSelectedBranch] = useState(null)
@@ -68,6 +73,18 @@ function Students() {
 
     if (!error) {
       setTrainers(data)
+    }
+  }
+  const fetchBatches = async (branchName) => {
+    const { data, error } = await supabase
+      .from("batches")
+      .select("*")
+      .eq("branch", branchName)
+
+    if (error) {
+      console.error(error)
+    } else {
+      setBatches(data)
     }
   }
 
@@ -180,40 +197,91 @@ function Students() {
 
 
 
-  const handlePhotoUpload = async (e) => {
+  const handlePhotoUpload = (e) => {
     const file = e.target.files[0]
     if (!file) return
 
-    const data = new FormData()
-    data.append("file", file)
-    data.append("upload_preset", "dtjygwjwd")
+    const reader = new FileReader()
 
-    try {
-      const res = await fetch(
-        "https://api.cloudinary.com/v1_1/dtjygwjwd/image/upload",
-        {
-          method: "POST",
-          body: data,
-        }
-      )
-
-      const result = await res.json()
-
-      if (result.secure_url) {
-        setFormData((prev) => ({
-          ...prev,
-          profile_photo: result.secure_url,
-        }))
-      }
-    } catch (error) {
-      console.error("Image upload failed:", error)
+    reader.onload = () => {
+      setImageSrc(reader.result)
+      setShowCropModal(true)
     }
-  }
 
+    reader.readAsDataURL(file)
+  }
+  const onCropComplete = (croppedArea, croppedPixels) => {
+    setCroppedAreaPixels(croppedPixels)
+  }
+  const getCroppedImg = async (imageSrc, crop) => {
+
+    const image = new Image()
+    image.src = imageSrc
+
+    await new Promise((resolve) => {
+      image.onload = resolve
+    })
+
+    const canvas = document.createElement("canvas")
+    const ctx = canvas.getContext("2d")
+
+    canvas.width = crop.width
+    canvas.height = crop.height
+
+    ctx.drawImage(
+      image,
+      crop.x,
+      crop.y,
+      crop.width,
+      crop.height,
+      0,
+      0,
+      crop.width,
+      crop.height
+    )
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        resolve(blob)
+      }, "image/jpeg")
+    })
+  }
+  const uploadCroppedImage = async () => {
+
+    const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels)
+
+    const formDataUpload = new FormData()
+    formDataUpload.append("file", croppedBlob)
+    formDataUpload.append("upload_preset", "dtjyggwjd")
+
+    const res = await fetch(
+      "https://api.cloudinary.com/v1_1/dtjyggwjd/image/upload",
+      {
+        method: "POST",
+        body: formDataUpload
+      }
+    )
+
+    const data = await res.json()
+
+    if (data.secure_url) {
+      setFormData((prev) => ({
+        ...prev,
+        profile_photo: data.secure_url
+      }))
+    }
+
+    setShowCropModal(false)
+  }
   const handleAddStudent = async () => {
 
+    if (!formData.profile_photo) {
+      alert("Please upload profile photo first")
+      return
+    }
+
     console.log("Submitting:", formData)
-    
+
     const { error } = await supabase
       .from("students")
       .insert([formData])
@@ -223,14 +291,14 @@ function Students() {
       console.error(error)
     } else {
       alert("Student Registered Successfully!")
-
+      fetchStudents()
       setFormData({
         name: "",
         activity: "",
         branch: "",
         batch: "",
         join_date: "",
-        whatsapp: "",
+        "Whatsapp Number": "",
         fees: "",
         dob: "",
         reference: "",
@@ -248,7 +316,7 @@ function Students() {
   const filteredStudents = students.filter(
     (s) =>
       s.name?.toLowerCase().includes(search.toLowerCase()) ||
-      s.course?.toLowerCase().includes(search.toLowerCase()) ||
+      s.activity?.toLowerCase().includes(search.toLowerCase()) ||
       s.branch?.toLowerCase().includes(search.toLowerCase())
   )
 
@@ -282,9 +350,11 @@ function Students() {
 
         <select
           value={formData.branch}
-          onChange={(e) =>
-            setFormData({ ...formData, branch: e.target.value })
-          }
+          onChange={(e) => {
+            const branch = e.target.value
+            setFormData({ ...formData, branch })
+            fetchBatches(branch)   // 👈 this loads batches
+          }}
         >
           <option value="">Select Branch</option>
           {branches.map((branch) => (
@@ -294,13 +364,19 @@ function Students() {
           ))}
         </select>
 
-        <input
-          placeholder="Batch"
+        <select
           value={formData.batch}
           onChange={(e) =>
             setFormData({ ...formData, batch: e.target.value })
           }
-        />
+        >
+          <option value="">Select Batch</option>
+          {batches.map((batch) => (
+            <option key={batch.id} value={batch.name}>
+              {batch.name}
+            </option>
+          ))}
+        </select>
 
         <label>Joining Date</label>
         <input
@@ -313,9 +389,9 @@ function Students() {
 
         <input
           placeholder="WhatsApp Number"
-          value={formData.whatsapp}
+          value={formData["Whatsapp Number"]}
           onChange={(e) =>
-            setFormData({ ...formData, whatsapp: e.target.value })
+            setFormData({ ...formData, ["Whatsapp Number"]: e.target.value })
           }
         />
 
@@ -365,6 +441,31 @@ function Students() {
           Register Student
         </button>
       </div>
+      {showCropModal && (
+
+        <div className="crop-modal">
+
+          <div className="crop-container">
+
+            <Cropper
+              image={imageSrc}
+              crop={crop}
+              zoom={zoom}
+              aspect={1}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropComplete}
+            />
+
+          </div>
+
+          <button onClick={uploadCroppedImage}>
+            Crop & Upload
+          </button>
+
+        </div>
+
+      )}
     </div>
   )
 }
