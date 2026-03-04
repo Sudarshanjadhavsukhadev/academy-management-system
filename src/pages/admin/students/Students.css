@@ -441,3 +441,32 @@ body {
   transform: translateY(-2px);
   box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
 }
+.photo-upload {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.photo-preview {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  cursor: pointer;
+  border: 3px solid #e5e7eb;
+  transition: 0.3s;
+}
+
+.photo-preview:hover {
+  border-color: #2563eb;
+}
+.upload-label {
+  font-weight: 600;
+  margin-bottom: 6px;
+  display: block;
+  text-align: left;
+}
+
+input[type="file"] {
+  margin-bottom: 20px;
+}

@@ -20,7 +20,8 @@ function Students() {
     whatsapp: "",
     fees: "",
     dob: "",
-    reference: "",   // how did you hear
+    reference: "",
+    profile_photo: "",   // ✅ ADD THIS LINE
     status: "Active",
   })
   // ✅ Course Options
@@ -178,7 +179,41 @@ function Students() {
   }
 
 
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    const data = new FormData()
+    data.append("file", file)
+    data.append("upload_preset", "dtjygwjwd")
+
+    try {
+      const res = await fetch(
+        "https://api.cloudinary.com/v1_1/dtjygwjwd/image/upload",
+        {
+          method: "POST",
+          body: data,
+        }
+      )
+
+      const result = await res.json()
+
+      if (result.secure_url) {
+        setFormData((prev) => ({
+          ...prev,
+          profile_photo: result.secure_url,
+        }))
+      }
+    } catch (error) {
+      console.error("Image upload failed:", error)
+    }
+  }
+
   const handleAddStudent = async () => {
+
+    console.log("Submitting:", formData)
+    
     const { error } = await supabase
       .from("students")
       .insert([formData])
@@ -191,13 +226,15 @@ function Students() {
 
       setFormData({
         name: "",
-        email: "",
-        phone: "",
-        course: "",
-        batch: "",
+        activity: "",
         branch: "",
-        trainer_id: "",
+        batch: "",
         join_date: "",
+        whatsapp: "",
+        fees: "",
+        dob: "",
+        reference: "",
+        profile_photo: "",   // IMPORTANT
         status: "Active",
       })
     }
@@ -218,6 +255,9 @@ function Students() {
   return (
     <div className="students-page">
       <div className="registration-card">
+
+
+
         <h2>Student Registration</h2>
 
         <input
@@ -297,6 +337,16 @@ function Students() {
           }
         />
 
+
+        <label className="upload-label">
+          Upload Profile Picture of Student
+        </label>
+
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handlePhotoUpload}
+        />
         <select
           value={formData.reference}
           onChange={(e) =>

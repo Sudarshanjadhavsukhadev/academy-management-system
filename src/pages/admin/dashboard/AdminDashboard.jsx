@@ -4,6 +4,7 @@ import * as XLSX from "xlsx"
 import Students from "../students/Students"
 import Batches from "../batches/Batches"
 import Courses from "../courses/courses"
+import UpdateFees from "../fees/UpdateFees"
 import { supabase } from "../../../services/supabase"
 import {
   Chart as ChartJS,
@@ -280,7 +281,7 @@ function AdminDashboard() {
 
             <button
               className="shortcut-btn"
-              onClick={() => setActiveTab("batches")}
+              onClick={() => setActiveTab("updateFees")}
             >
               Update Fees Status
             </button>
@@ -433,6 +434,9 @@ function AdminDashboard() {
       )}
       {activeTab === "addStudent" && (
         <Students />
+      )}
+      {activeTab === "updateFees" && (
+        <UpdateFees />
       )}
 
       {activeTab === "batches" && (
