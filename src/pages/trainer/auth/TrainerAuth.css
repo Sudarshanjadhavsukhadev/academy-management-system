@@ -96,3 +96,11 @@
   position: relative;
   z-index: 1;
 }
+form label{
+  display:block;
+  font-weight:600;
+  margin-top:12px;
+  margin-bottom:6px;
+  font-size:14px;
+  color:#1e293b;
+}

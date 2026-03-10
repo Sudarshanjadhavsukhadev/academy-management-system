@@ -8,21 +8,35 @@ function Topbar() {
   const [profileImage, setProfileImage] = useState("")
 
   useEffect(() => {
-    const getAdminProfile = async () => {
-      const { data } = await supabase.auth.getUser()
 
-      if (data?.user) {
-        // later we will store image URL in user metadata
-        const imageUrl = data.user.user_metadata?.profile_image
-        if (imageUrl) {
-          setProfileImage(imageUrl)
-        }
+    const getAdminProfile = async () => {
+
+      const { data: userData } = await supabase.auth.getUser()
+
+      if (!userData?.user) return
+
+      const userId = userData.user.id
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("profile_photo")
+        .eq("id", userId)
+        .single()
+
+      if (data?.profile_photo) {
+        setProfileImage(data.profile_photo)
       }
+
     }
 
     getAdminProfile()
-  }, [])
 
+    // reload when window focus changes
+    window.addEventListener("focus", getAdminProfile)
+
+    return () => window.removeEventListener("focus", getAdminProfile)
+
+  }, [])
   return (
     <header className="topbar">
       <h3>Admin Dashboard</h3>

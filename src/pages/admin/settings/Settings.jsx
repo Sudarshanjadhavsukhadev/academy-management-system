@@ -1,190 +1,359 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { supabase } from "../../../services/supabase"
 import "./Settings.css"
 
 function Settings() {
-  const [academy, setAcademy] = useState({
-    name: "MJK Academy",
-    email: "info@mjkacademy.com",
-    phone: "9876543210",
-    address: "Mumbai, Maharashtra",
-  })
+
 
   const [admin, setAdmin] = useState({
-    name: "Admin User",
-    email: "admin@mjkacademy.com",
+    email: "",
     password: "",
   })
 
   const [profileImage, setProfileImage] = useState(null)
   const [previewImage, setPreviewImage] = useState("")
+  const [adminPhoto, setAdminPhoto] = useState("")
 
-  const [finance, setFinance] = useState({
-    currency: "INR",
-    gst: "18%",
-    defaultFeeStatus: "Paid",
-  })
+  const [verifiedPassword, setVerifiedPassword] = useState(false)
 
+  const [newEmail, setNewEmail] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [showPasswordPopup, setShowPasswordPopup] = useState(false)
+  const [showEmailPopup, setShowEmailPopup] = useState(false)
+  const [showProfilePopup, setShowProfilePopup] = useState(false)
+  const [passwordEmail, setPasswordEmail] = useState("")
+  const [currentEmail, setCurrentEmail] = useState("")
   const handleLogout = () => {
     localStorage.removeItem("isAdminLoggedIn")
     window.location.href = "/admin/login"
   }
+  const sendVerificationLink = async (email) => {
 
+    if (email !== admin.email) {
+      alert("Please enter your logged in email")
+      return
+    }
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email,
+      options: {
+        emailRedirectTo: window.location.origin + "/admin/settings"
+      }
+    })
+
+    if (error) {
+      alert(error.message)
+    } else {
+      alert("Verification link sent to your email. Click the link in email to continue.")
+    }
+
+  }
+
+
+  const updateEmail = async () => {
+
+    if (!newEmail) {
+      alert("Please enter new email")
+      return
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      email: newEmail
+    })
+
+    if (!error) {
+
+      alert("Email updated successfully. Please login again.")
+
+      await supabase.auth.signOut()
+
+      window.location.href = "/admin/login"
+
+    }
+  }
+  const updatePassword = async () => {
+
+    // 🔒 password validation
+    if (newPassword.length < 6) {
+      alert("Password must be at least 6 characters")
+      return
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    })
+
+    if (!error) {
+
+      alert("Password updated successfully")
+
+      await supabase.auth.signOut()
+
+      window.location.href = "/admin/login"
+
+    }
+
+  }
+  const updateCredentials = async () => {
+
+    const updates = {}
+
+    if (newEmail) updates.email = newEmail
+    if (newPassword) updates.password = newPassword
+
+    const { error } = await supabase.auth.updateUser(updates)
+
+    if (!error) {
+      alert("Credentials updated successfully")
+    }
+
+  }
+  const uploadAdminPhoto = async () => {
+
+    if (!profileImage) {
+      alert("Please select image")
+      return
+    }
+
+    // Upload to Cloudinary
+    const formDataUpload = new FormData()
+    formDataUpload.append("file", profileImage)
+    formDataUpload.append("upload_preset", "dtjyggwjd")
+
+    const res = await fetch(
+      "https://api.cloudinary.com/v1_1/dtjyggwjd/image/upload",
+      {
+        method: "POST",
+        body: formDataUpload
+      }
+    )
+
+    const data = await res.json()
+
+    if (!data.secure_url) {
+      alert("Image upload failed")
+      return
+    }
+
+    setAdminPhoto(data.secure_url)
+
+    // 🔥 Get logged in user
+    const { data: userData } = await supabase.auth.getUser()
+    const userId = userData.user.id
+
+    // 🔥 Check if profile exists
+    await supabase
+      .from("profiles")
+      .upsert({
+        id: userId,
+        profile_photo: data.secure_url
+      })
+
+    alert("Profile picture updated successfully")
+    setShowProfilePopup(false)
+    setAdminPhoto(data.secure_url)
+
+
+  }
+
+  useEffect(() => {
+    loadAdminData()
+  }, [])
+  const loadAdminData = async () => {
+
+    const { data: userData } = await supabase.auth.getUser()
+
+    if (userData?.user) {
+
+      // set real email
+      setAdmin({
+        email: userData.user.email,
+        password: ""
+      })
+
+      const userId = userData.user.id
+
+      // load profile photo
+      const { data } = await supabase
+        .from("profiles")
+        .select("profile_photo")
+        .eq("id", userId)
+        .maybeSingle()
+
+      if (data?.profile_photo) {
+        setAdminPhoto(data.profile_photo)
+      }
+
+    }
+
+  }
   return (
     <div className="settings-page">
-      <div className="admin-container">
-        <h1 className="settings-title">Settings</h1>
+      <div className="resume-settings">
 
-        {/* ===== ADMIN PROFILE ===== */}
-        <div className="settings-card">
-          <h3>Admin Profile</h3>
+        {/* LEFT SIDE PROFILE */}
+        <div className="resume-left">
 
-          <div className="admin-profile-grid">
+          <img src={adminPhoto} className="resume-photo" />
 
-            {/* LEFT SIDE - IMAGE */}
-            <div className="profile-section">
-              <div className="profile-preview">
-                <img
-                  src={
-                    previewImage ||
-                    "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-                  }
-                  alt="profile"
-                />
-              </div>
+          <h2>Admin</h2>
+          <p>{admin.email}</p>
 
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files[0]
-                  if (file) {
-                    setProfileImage(file)
-                    setPreviewImage(URL.createObjectURL(file))
-                  }
-                }}
-              />
-            </div>
-
-            {/* RIGHT SIDE - FORM */}
-            <div className="profile-form">
-              <input
-                placeholder="Admin Name"
-                value={admin.name}
-                onChange={(e) =>
-                  setAdmin({ ...admin, name: e.target.value })
-                }
-              />
-
-              <input
-                placeholder="Admin Email"
-                value={admin.email}
-                onChange={(e) =>
-                  setAdmin({ ...admin, email: e.target.value })
-                }
-              />
-
-              <input
-                type="password"
-                placeholder="New Password"
-                value={admin.password}
-                onChange={(e) =>
-                  setAdmin({ ...admin, password: e.target.value })
-                }
-              />
-
-              <button className="save-btn">Update Profile</button>
-            </div>
-
-          </div>
-        </div>
-        {/* ===== ACADEMY SETTINGS ===== */}
-        <div className="settings-card">
-          <h3>Academy Details</h3>
-
-          <div className="settings-form">
-            <input
-              placeholder="Academy Name"
-              value={academy.name}
-              onChange={(e) =>
-                setAcademy({ ...academy, name: e.target.value })
-              }
-            />
-            <input
-              placeholder="Email"
-              value={academy.email}
-              onChange={(e) =>
-                setAcademy({ ...academy, email: e.target.value })
-              }
-            />
-            <input
-              placeholder="Phone"
-              value={academy.phone}
-              onChange={(e) =>
-                setAcademy({ ...academy, phone: e.target.value })
-              }
-            />
-            <input
-              placeholder="Address"
-              value={academy.address}
-              onChange={(e) =>
-                setAcademy({ ...academy, address: e.target.value })
-              }
-            />
-          </div>
-
-          <button className="save-btn">Save Academy Details</button>
-        </div>
-
-
-
-        {/* ===== FINANCE SETTINGS ===== */}
-        <div className="settings-card">
-          <h3>Finance Settings</h3>
-
-          <div className="settings-form">
-            <select
-              value={finance.currency}
-              onChange={(e) =>
-                setFinance({ ...finance, currency: e.target.value })
-              }
-            >
-              <option value="INR">INR (₹)</option>
-              <option value="USD">USD ($)</option>
-            </select>
-
-            <input
-              placeholder="GST Percentage"
-              value={finance.gst}
-              onChange={(e) =>
-                setFinance({ ...finance, gst: e.target.value })
-              }
-            />
-
-            <select
-              value={finance.defaultFeeStatus}
-              onChange={(e) =>
-                setFinance({
-                  ...finance,
-                  defaultFeeStatus: e.target.value,
-                })
-              }
-            >
-              <option>Paid</option>
-              <option>Pending</option>
-            </select>
-          </div>
-
-          <button className="save-btn">Save Finance Settings</button>
-        </div>
-
-        {/* ===== SYSTEM ===== */}
-        <div className="settings-card danger">
-          <h3>System</h3>
-          <button className="logout-btn" onClick={handleLogout}>
-            Logout
+          <button
+            className="primary-btn"
+            onClick={() => setShowProfilePopup(true)}
+          >
+            Change Photo
           </button>
+
         </div>
+
+        {/* RIGHT SIDE SETTINGS */}
+        <div className="resume-right">
+
+          {/* EMAIL SECTION */}
+          <div className="resume-card">
+            <h3>Email Settings</h3>
+
+            <p>Current Email</p>
+            <input value={admin.email} disabled />
+
+            <button
+              className="save-btn"
+              onClick={() => setShowEmailPopup(true)}
+            >
+              Update Email
+            </button>
+          </div>
+
+          {/* PASSWORD SECTION */}
+          <div className="resume-card">
+            <h3>Password</h3>
+
+            <p>Update your account password</p>
+
+            <button
+              className="save-btn"
+              onClick={() => setShowPasswordPopup(true)}
+            >
+              Change Password
+            </button>
+          </div>
+
+          {/* SYSTEM */}
+          <div className="resume-card danger">
+            <h3>System</h3>
+
+            <button className="logout-btn" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
+
+        </div>
+
       </div>
+      {showEmailPopup && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+
+            <h3>Update Email</h3>
+
+            <input
+              placeholder="Enter your current email"
+              value={currentEmail}
+              onChange={(e) => setCurrentEmail(e.target.value)}
+            />
+
+            <button
+              onClick={() => sendVerificationLink(currentEmail)}
+              className="save-btn"
+            >
+              Send Verification Link
+            </button>
+
+            <input
+              placeholder="Enter new email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+            />
+
+            <button
+              onClick={updateEmail}
+              className="save-btn"
+            >
+              Update Email
+            </button>
+
+            <button
+              className="cancel-btn"
+              onClick={() => setShowEmailPopup(false)}
+            >
+              Cancel
+            </button>
+
+          </div>
+        </div>
+      )}
+      {showPasswordPopup && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+
+            <h3>Update Password</h3>
+
+            <input
+              placeholder="Enter Your Email"
+              value={passwordEmail}
+              onChange={(e) => setPasswordEmail(e.target.value)}
+            />
+
+            <button
+              onClick={() => sendOTP(passwordEmail)}
+              className="save-btn"
+            >
+              Send OTP
+            </button>
+
+            <input
+              placeholder="Enter OTP"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+            />
+
+            <button
+              onClick={verifyOTPPassword}
+              className="save-btn"
+            >
+              Verify OTP
+            </button>
+
+            {verifiedPassword && (
+              <>
+                <input
+                  type="password"
+                  placeholder="Enter New Password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+
+                <button
+                  onClick={updatePassword}
+                  className="save-btn"
+                >
+                  Update Password
+                </button>
+              </>
+            )}
+
+            <button
+              className="cancel-btn"
+              onClick={() => setShowPasswordPopup(false)}
+            >
+              Cancel
+            </button>
+
+          </div>
+        </div>
+      )}
     </div>
   )
 }

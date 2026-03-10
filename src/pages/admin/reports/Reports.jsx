@@ -27,7 +27,7 @@ function Reports() {
   const [summary, setSummary] = useState([])
   const [monthlyRevenue, setMonthlyRevenue] = useState({})
   const [profitSplit, setProfitSplit] = useState({})
-  const [reportData, setReportData] = useState([])
+ 
   const [marketingData, setMarketingData] = useState({})
 
   useEffect(() => {
@@ -64,14 +64,27 @@ function Reports() {
       { title: "Net Profit", value: `₹${netProfit}` },
     ])
 
+    // last 6 months
     const monthlyMap = {}
 
-    students.forEach((s) => {
-      const month = new Date(s.join_date).toLocaleString("default", {
-        month: "short",
-      })
+    const today = new Date()
 
-      monthlyMap[month] = (monthlyMap[month] || 0) + Number(s.fees)
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1)
+      const monthName = d.toLocaleString("default", { month: "short" })
+      monthlyMap[monthName] = 0
+    }
+
+    // fill revenue
+    students.forEach((s) => {
+      if (!s.join_date) return
+
+      const d = new Date(s.join_date)
+      const monthName = d.toLocaleString("default", { month: "short" })
+
+      if (monthlyMap.hasOwnProperty(monthName)) {
+        monthlyMap[monthName] += Number(s.fees) || 0
+      }
     })
 
     const labels = Object.keys(monthlyMap)
@@ -88,41 +101,61 @@ function Reports() {
       ],
     })
 
-    const paidStudents = students.filter(
-      (s) => s.fees_status?.toLowerCase() === "paid"
-    )
+    /* ===== COURSE ENROLLMENT ===== */
 
-    const unpaidStudents = students.filter(
-      (s) => s.fees_status?.toLowerCase() !== "paid"
-    )
+    const courseMap = {}
 
-    const paidTotal = paidStudents.reduce((sum, s) => {
-      return sum + (Number(s.fees) || 0)
-    }, 0)
+    students.forEach((s) => {
+    const course = s.activity || "Unknown"
 
-    const unpaidTotal = unpaidStudents.reduce((sum, s) => {
-      return sum + (Number(s.fees) || 0)
-    }, 0)
+      courseMap[course] = (courseMap[course] || 0) + 1
+    })
 
+    const courseLabels = Object.keys(courseMap)
+    const courseValues = Object.values(courseMap)
 
     setProfitSplit({
-      labels: ["Paid Fees", "Unpaid Fees"],
+      labels: courseLabels,
       datasets: [
         {
-          data: [paidStudents.length, unpaidStudents.length],
-          backgroundColor: ["#22c55e", "#ef4444"],
+          label: "Students",
+          data: courseValues,
+          backgroundColor: [
+            "#6366f1",
+            "#22c55e",
+            "#f59e0b",
+            "#ef4444",
+            "#06b6d4",
+            "#8b5cf6",
+            "#14b8a6",
+            "#f97316",
+            "#a855f7",
+            "#eab308"
+          ],
         },
       ],
     })
 
     /* ===== MARKETING SOURCE ===== */
 
-    const marketingMap = {}
+    // predefined marketing sources
+    const marketingMap = {
+      "Instagram": 0,
+      "Facebook": 0,
+      "Google": 0,
+      "Friend Referral": 0,
+      "Walk In": 0,
+      "Other": 0
+    }
 
     students.forEach((s) => {
-      const source = s.reference || "Unknown"
+      const source = s.reference || "Other"
 
-      marketingMap[source] = (marketingMap[source] || 0) + 1
+      if (marketingMap.hasOwnProperty(source)) {
+        marketingMap[source]++
+      } else {
+        marketingMap["Other"]++
+      }
     })
 
     const marketingLabels = Object.keys(marketingMap)
@@ -144,15 +177,7 @@ function Reports() {
         },
       ],
     })
-    const tableData = labels.map((month, index) => ({
-      id: index,
-      month,
-      revenue: `₹${values[index]}`,
-      salary: `₹${Math.round(trainerSalary / 12)}`,
-      profit: `₹${values[index] - Math.round(trainerSalary / 12)}`,
-    }))
-
-    setReportData(tableData)
+   
   }
 
 
@@ -165,24 +190,9 @@ function Reports() {
 
     <div className="reports-page">
       {/* HEADER */}
-      <div className="reports-header">
-        <h1>Reports</h1>
-
-        <div className="controls">
-          <button className="add-btn">Export PDF</button>
-          <button className="delete-btn">Export Excel</button>
-        </div>
-      </div>
 
       {/* SUMMARY */}
-      <div className="summary-grid">
-        {summary.map((item, index) => (
-          <div className="summary-card" key={index}>
-            <p>{item.title}</p>
-            <h2>{item.value}</h2>
-          </div>
-        ))}
-      </div>
+
 
       {/* CHARTS */}
       <div className="reports-charts">
@@ -193,40 +203,31 @@ function Reports() {
         </div>
 
         <div className="chart-box">
-          <h3>Paid vs Unpaid Fees</h3>
-          {profitSplit.labels && <Pie data={profitSplit} />}
-        </div>
+          <h3>Students per Activity</h3>
 
-        <div className="chart-box">
+          <div style={{ height: "280px" }}>
+            {profitSplit.labels && (
+              <Pie
+                data={profitSplit}
+                options={{
+                  plugins: {
+                    legend: {
+                      position: "bottom"
+                    }
+                  },
+                  maintainAspectRatio: false
+                }}
+              />
+            )}
+          </div>
+        </div>
+        <div className="chart-box marketing-chart">
           <h3>Marketing Sources</h3>
           {marketingData.labels && <Bar data={marketingData} />}
         </div>
 
       </div>
-      {/* TABLE */}
-      <div className="table-wrapper">
-        <table className="reports-table">
-          <thead>
-            <tr>
-              <th>Month</th>
-              <th>Revenue</th>
-              <th>Trainer Salary</th>
-              <th>Profit</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {reportData.map((r) => (
-              <tr key={r.id}>
-                <td>{r.month}</td>
-                <td>{r.revenue}</td>
-                <td>{r.salary}</td>
-                <td className="profit">{r.profit}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+     
     </div>
 
   )

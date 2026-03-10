@@ -7,6 +7,7 @@ function Courses() {
   const [courses, setCourses] = useState([])
   useEffect(() => {
     fetchCourses()
+    fetchBatchCounts()
   }, [])
 
   const fetchCourses = async () => {
@@ -22,17 +23,33 @@ function Courses() {
     }
   }
 
+  const fetchBatchCounts = async () => {
+    const { data, error } = await supabase
+      .from("batches")
+      .select("course")
+
+    if (error) {
+      console.error(error)
+      return
+    }
+
+    const counts = {}
+
+    data.forEach((b) => {
+      counts[b.course] = (counts[b.course] || 0) + 1
+    })
+
+    setBatchCounts(counts)
+  }
 
   const [selected, setSelected] = useState([])
   const [search, setSearch] = useState("")
   const [showModal, setShowModal] = useState(false)
+  const [batchCounts, setBatchCounts] = useState({})
 
   const [newCourse, setNewCourse] = useState({
     name: "",
-    duration: "",
-    fees: "",
-    trainers: "",
-    batches: "",
+
     status: "Active",
   })
 
@@ -105,10 +122,7 @@ function Courses() {
       setShowModal(false)
       setNewCourse({
         name: "",
-        duration: "",
-        fees: "",
-        trainers: "",
-        batches: "",
+
         status: "Active",
       })
     }
@@ -125,18 +139,18 @@ function Courses() {
 
         {/* HEADER */}
         <div className="courses-header">
-          <h1>Courses</h1>
+          <h1>Activities</h1>
 
           <div className="controls">
             <input
               type="text"
-              placeholder="Search course..."
+              placeholder="Search activity..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
 
             <button className="add-btn" onClick={() => setShowModal(true)}>
-              + Add Course
+              + Add Activity
             </button>
 
             <button
@@ -155,10 +169,8 @@ function Courses() {
             <thead>
               <tr>
                 <th></th>
-                <th>Course Name</th>
-                <th>Duration</th>
-                <th>Fees</th>
-                <th>Trainers</th>
+                <th>Activity Name</th>
+
                 <th>Batches</th>
                 <th>Status</th>
                 <th>Action</th>
@@ -176,10 +188,8 @@ function Courses() {
                     />
                   </td>
                   <td>{course.name}</td>
-                  <td>{course.duration}</td>
-                  <td>{course.fees}</td>
-                  <td>{course.trainers}</td>
-                  <td>{course.batches}</td>
+
+                 <td>{batchCounts[course.name] || 0}</td>
                   <td>
                     <span
                       className={`status ${course.status === "Active" ? "active" : "inactive"
@@ -202,8 +212,8 @@ function Courses() {
 
               {filteredCourses.length === 0 && (
                 <tr>
-                  <td colSpan="8" className="no-data">
-                    No courses found
+                  <td colSpan="5" className="no-data">
+                    No activities found
                   </td>
                 </tr>
               )}
@@ -215,41 +225,21 @@ function Courses() {
         {showModal && (
           <div className="modal-overlay">
             <div className="modal">
-              <h2>Add Course</h2>
+              <h2>Add Activity</h2>
 
               <div className="modal-section">
-                <h4>Course Details</h4>
+                <h4>Activity Details</h4>
                 <div className="modal-form">
                   <input
-                    placeholder="Course Name"
+                    placeholder="Activity Name"
                     onChange={(e) =>
                       setNewCourse({ ...newCourse, name: e.target.value })
                     }
                   />
-                  <input
-                    placeholder="Duration (e.g. 6 Months)"
-                    onChange={(e) =>
-                      setNewCourse({ ...newCourse, duration: e.target.value })
-                    }
-                  />
-                  <input
-                    placeholder="Fees"
-                    onChange={(e) =>
-                      setNewCourse({ ...newCourse, fees: e.target.value })
-                    }
-                  />
-                  <input
-                    placeholder="Assigned Trainers"
-                    onChange={(e) =>
-                      setNewCourse({ ...newCourse, trainers: e.target.value })
-                    }
-                  />
-                  <input
-                    placeholder="Batches"
-                    onChange={(e) =>
-                      setNewCourse({ ...newCourse, batches: e.target.value })
-                    }
-                  />
+
+
+
+
                 </div>
               </div>
 
@@ -258,7 +248,7 @@ function Courses() {
                   Cancel
                 </button>
                 <button className="save" onClick={addCourse}>
-                  Save Course
+                  Save Activity
                 </button>
               </div>
             </div>
@@ -269,7 +259,7 @@ function Courses() {
         {showDeleteModal && (
           <div className="delete-overlay">
             <div className="delete-modal">
-              <h3>Delete Course</h3>
+              <h3>Delete Activity</h3>
               <p>
                 Are you sure you want to delete{" "}
                 <strong>{courseToDelete?.name}</strong>?

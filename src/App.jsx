@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom"
-
+import AttendanceReport from "./pages/admin/attendance/AttendanceReport"
 /* AUTH */
 import Login from "./pages/auth/Login"
 import Signup from "./pages/auth/Signup"
@@ -28,7 +28,8 @@ import Batches from "./pages/admin/batches/Batches"
 import Accounts from "./pages/admin/accounts/Accounts"
 import Reports from "./pages/admin/reports/Reports"
 import Settings from "./pages/admin/settings/Settings"
-
+import AddBatch from "./pages/admin/AddBatch"
+import AddBranch from "./pages/admin/AddBranch"
 /* TRAINER */
 import TrainerLogin from "./pages/trainer/auth/TrainerLogin"
 import TrainerRegister from "./pages/trainer/auth/TrainerRegister"
@@ -81,6 +82,9 @@ function App() {
         <Route path="accounts" element={<Accounts />} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="attendance-report" element={<AttendanceReport />} />
+        <Route path="add-batch" element={<AddBatch />} />
+        <Route path="branches" element={<AddBranch />} />
       </Route>
 
       {/* USER PROTECTED */}

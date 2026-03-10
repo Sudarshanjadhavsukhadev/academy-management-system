@@ -69,7 +69,14 @@ function UpdateFees() {
       .eq("id", selectedStudent.id)
 
     if (!error) {
-      alert("Payment saved successfully")
+
+      // 🔔 Save notification
+      await supabase
+        .from("notifications")
+        .insert({
+          message: ` ${selectedStudent.name} paid ₹${paymentAmount}`
+        })
+
       setSelectedStudent(null)
       setPaymentAmount("")
       setPaymentDate("")

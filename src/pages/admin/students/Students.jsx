@@ -15,6 +15,7 @@ function Students() {
   const [showCropModal, setShowCropModal] = useState(false)
   // 👇 ADD THESE LINES
   const [showAddModal, setShowAddModal] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
   const [formData, setFormData] = useState({
     name: "",
@@ -248,6 +249,8 @@ function Students() {
   }
   const uploadCroppedImage = async () => {
 
+    setUploading(true)
+
     const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels)
 
     const formDataUpload = new FormData()
@@ -271,6 +274,7 @@ function Students() {
       }))
     }
 
+    setUploading(false)
     setShowCropModal(false)
   }
   const handleAddStudent = async () => {
@@ -291,7 +295,7 @@ function Students() {
       console.error(error)
     } else {
       alert("Student Registered Successfully!")
-      fetchStudents()
+      fetchStudents(formData.branch)
       setFormData({
         name: "",
         activity: "",
@@ -460,7 +464,7 @@ function Students() {
           </div>
 
           <button onClick={uploadCroppedImage}>
-            Crop & Upload
+            {uploading ? "Uploading..." : "Crop & Upload"}
           </button>
 
         </div>

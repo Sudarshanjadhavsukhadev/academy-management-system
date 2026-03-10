@@ -10,6 +10,8 @@ import {
   Legend,
 } from "chart.js"
 import { Bar, Pie, Line } from "react-chartjs-2"
+import Calendar from "react-calendar"
+import "react-calendar/dist/Calendar.css"
 
 import { supabase } from "../../../services/supabase"
 import { useEffect, useState } from "react"
@@ -29,26 +31,41 @@ ChartJS.register(
   Legend
 )
 
-function Batches({ openAddModal }) {
+function Batches({ searchStudent }) {
   const [batches, setBatches] = useState([])
   const [selectedBranch, setSelectedBranch] = useState("")
   const [branches, setBranches] = useState([])
-  const [selected, setSelected] = useState([])
+
   const [search, setSearch] = useState("")
-  const [showModal, setShowModal] = useState(false)
+
   const [selectedBatch, setSelectedBatch] = useState(null)
-  const [newBatch, setNewBatch] = useState({
-    name: "",
-    course: "",
-    trainer: "",
-    branch: "",
-    timing: "",
-    strength: "",
-    status: "Active",
-    days: [],
-  })
-
-
+  const [showPopup, setShowPopup] = useState(true)
+  const [popupStep, setPopupStep] = useState(1)
+  const [showMenu, setShowMenu] = useState(false)
+  const [showAddBranchPopup, setShowAddBranchPopup] = useState(false)
+  const [branchName, setBranchName] = useState("")
+  const [showAddBatchPopup, setShowAddBatchPopup] = useState(false)
+  const [batchName, setBatchName] = useState("")
+  const [batchCourse, setBatchCourse] = useState("")
+  const [batchBranch, setBatchBranch] = useState("")
+  const [activeTab, setActiveTab] = useState("details")
+  const [trainers, setTrainers] = useState([])
+  const [courses, setCourses] = useState([])
+  const [selectedTrainer, setSelectedTrainer] = useState("")
+  const [batchTrainer, setBatchTrainer] = useState("")
+  const [batchTime, setBatchTime] = useState("")
+  const [studentStrength, setStudentStrength] = useState(0)
+  const [batchDays, setBatchDays] = useState([])
+  const [isEditing, setIsEditing] = useState(false)
+  const [batchStudents, setBatchStudents] = useState([])
+  const [viewStudent, setViewStudent] = useState(null)
+  const [editingStudent, setEditingStudent] = useState(null)
+  const [paymentStudent, setPaymentStudent] = useState(null)
+  const [paymentDate, setPaymentDate] = useState(new Date())
+  const [attendance, setAttendance] = useState({})
+  const [attendanceStats, setAttendanceStats] = useState([])
+  const [studentAttendanceChart, setStudentAttendanceChart] = useState(null)
+  const [studentAttendanceDates, setStudentAttendanceDates] = useState([])
   const fetchBranches = async () => {
     const { data, error } = await supabase
       .from("branches")
@@ -61,15 +78,261 @@ function Batches({ openAddModal }) {
       setBranches(data)
     }
   }
+  const fetchTrainers = async () => {
+    const { data, error } = await supabase
+      .from("trainers")
+      .select("*")
 
+    if (error) {
+      console.error(error)
+    } else {
+      setTrainers(data)
+    }
+  }
+
+
+  const fetchStudentStrength = async (batchName) => {
+    const { count, error } = await supabase
+      .from("students")
+      .select("*", { count: "exact", head: true })
+      .eq("batch", batchName)
+
+    if (error) {
+      console.error(error)
+    } else {
+      setStudentStrength(count)
+    }
+  }
+  const fetchBatchStudents = async (batchName) => {
+
+    const { data, error } = await supabase
+      .from("students")
+      .select("*")
+      .eq("batch", batchName)
+
+    if (error) {
+      console.error(error)
+      return
+    }
+
+    const today = new Date()
+
+    for (let student of data) {
+
+      if (!student.join_date) continue
+
+      const joinDate = new Date(student.join_date)
+
+      // next due date based on join date day
+      const nextDue = new Date(today.getFullYear(), today.getMonth(), joinDate.getDate())
+
+      // if today's date passed the due date and payment exists
+      if (today >= nextDue && student.paid_on) {
+
+        await supabase
+          .from("students")
+          .update({ paid_on: null })
+          .eq("id", student.id)
+
+        student.paid_on = null
+      }
+    }
+
+    setBatchStudents(data)
+  }
+  const fetchCourses = async () => {
+    const { data, error } = await supabase
+      .from("courses")
+      .select("*")
+
+    console.log("Courses Data:", data)   // 👈 ADD THIS LINE
+
+    if (error) {
+      console.error(error)
+    } else {
+      setCourses(data)
+    }
+  }
+  const addBranch = async () => {
+    if (!branchName.trim()) {
+      alert("Please enter branch name")
+      return
+    }
+
+    const { error } = await supabase
+      .from("branches")
+      .insert([{ name: branchName }])
+
+    if (error) {
+      console.error(error)
+    } else {
+      setBranchName("")
+      setShowAddBranchPopup(false)
+      fetchBranches() // refresh branch list
+    }
+  }
+  const deleteBranch = async (id) => {
+    const confirmDelete = window.confirm("Delete this branch?")
+    if (!confirmDelete) return
+
+    const { error } = await supabase
+      .from("branches")
+      .delete()
+      .eq("id", id)
+
+    if (error) {
+      console.error(error)
+    } else {
+      fetchBranches()
+    }
+  }
+  const addBatch = async () => {
+    if (!batchName || !batchCourse || !batchBranch) {
+      alert("Please fill all fields")
+      return
+    }
+
+    const { error } = await supabase
+      .from("batches")
+      .insert([
+        {
+          name: batchName,
+          course: batchCourse,
+          branch: batchBranch,
+          trainer: batchTrainer,
+          timing: batchTime,
+          days: batchDays.join(", ")
+        }
+      ])
+
+    if (error) {
+      console.error(error)
+    } else {
+      setBatchName("")
+      setBatchCourse("")
+      setBatchBranch("")
+      setBatchTrainer("")
+      setBatchTime("")
+      setShowAddBatchPopup(false)
+      fetchBatches(batchBranch)
+    }
+  }
+  const updateBatch = async () => {
+
+    const { error } = await supabase
+      .from("batches")
+      .update({
+        name: batchName,
+        course: batchCourse,
+        branch: batchBranch,
+        trainer: batchTrainer,
+        timing: batchTime,
+        days: batchDays.join(", ")
+      })
+      .eq("id", selectedBatch.id)
+
+    if (error) {
+      console.error(error)
+    } else {
+
+      alert("Batch Updated")
+
+      setIsEditing(false)
+
+      fetchBatches(batchBranch)
+
+      setSelectedBatch({
+        ...selectedBatch,
+        name: batchName,
+        course: batchCourse,
+        branch: batchBranch,
+        trainer: batchTrainer,
+        timing: batchTime,
+        days: batchDays.join(", ")
+      })
+    }
+
+  }
+  const deleteBatch = async (id) => {
+    const confirmDelete = window.confirm("Delete this batch?")
+    if (!confirmDelete) return
+
+    const { error } = await supabase
+      .from("batches")
+      .delete()
+      .eq("id", id)
+
+    if (error) {
+      console.error(error)
+    } else {
+      fetchBatches(batchBranch || selectedBranch)
+    }
+  }
+  const assignTrainer = async () => {
+    if (!selectedTrainer || !selectedBatch) {
+      alert("Select trainer")
+      return
+    }
+
+    const { error } = await supabase
+      .from("batches")
+      .update({ trainer: selectedTrainer })
+      .eq("id", selectedBatch.id)
+
+    if (error) {
+      console.error(error)
+    } else {
+
+      setSelectedBatch({
+        ...selectedBatch,
+        trainer: selectedTrainer
+      })
+
+      fetchBatches(selectedBranch)
+
+      alert("Trainer Assigned")
+    }
+  }
   useEffect(() => {
     fetchBranches()
+    fetchTrainers()
+    fetchCourses()
   }, [])
   useEffect(() => {
-    if (openAddModal) {
-      setShowModal(true)
+    setSelectedTrainer("")
+  }, [selectedBatch])
+  useEffect(() => {
+    if (selectedBatch) {
+      fetchStudentStrength(selectedBatch.name)
+      fetchBatchStudents(selectedBatch.name)
     }
-  }, [openAddModal])
+  }, [selectedBatch])
+
+  useEffect(() => {
+
+    if (!searchStudent) return
+
+    setShowPopup(false)   // 🔥 hide branch popup
+    setSelectedBranch(searchStudent.branch)
+
+    fetchBatches(searchStudent.branch)
+
+  }, [searchStudent])
+
+  useEffect(() => {
+
+    if (!searchStudent || batches.length === 0) return
+
+    const studentBatch = batches.find(
+      batch => batch.name === searchStudent.batch
+    )
+
+    if (studentBatch) {
+      setSelectedBatch(studentBatch)
+      setActiveTab("students")
+    }
+
+  }, [batches])
   const fetchBatches = async (branch) => {
     const { data, error } = await supabase
       .from("batches")
@@ -83,141 +346,155 @@ function Batches({ openAddModal }) {
       setBatches(data)
     }
   }
-  const toggleSelect = (id) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    )
+  const toggleDay = (day) => {
+
+    if (batchDays.includes(day)) {
+      setBatchDays(batchDays.filter(d => d !== day))
+    } else {
+      setBatchDays([...batchDays, day])
+    }
+
   }
 
-  const deleteBatch = async (id) => {
+  const toggleStudentStatus = async (student) => {
+
+    const newStatus = student.status === "active" ? "disabled" : "active"
+
+    const updateData = {
+      status: newStatus
+    }
+
+    // If re-activating student → update join date
+    if (newStatus === "active") {
+      updateData.join_date = new Date().toISOString().split("T")[0]
+    }
+
     const { error } = await supabase
-      .from("batches")
-      .delete()
-      .eq("id", id)
+      .from("students")
+      .update(updateData)
+      .eq("id", student.id)
 
     if (error) {
       console.error(error)
     } else {
-      fetchBatches(selectedBranch)
+      fetchBatchStudents(selectedBatch.name)
     }
+
   }
 
+  const markAttendance = (id, status) => {
 
-  const deleteSelected = async () => {
-    const { error } = await supabase
-      .from("batches")
-      .delete()
-      .in("id", selected)
+    setAttendance(prev => ({
+      ...prev,
+      [id]: status
+    }))
+
+  }
+  const fetchAttendanceStats = async () => {
+
+    const { data, error } = await supabase
+      .from("attendance")
+      .select("*")
 
     if (error) {
       console.error(error)
-    } else {
-      setSelected([])
-      fetchBatches(selectedBranch)
-    }
-  }
-
-
-  const addBatch = async () => {
-    if (!selectedBranch) {
-      alert("Please select branch first")
       return
     }
 
-    const { error } = await supabase
-      .from("batches")
-      .insert([
+    const monthly = {}
+
+    data.forEach((record) => {
+
+      const month = new Date(record.date).toLocaleString("default", { month: "short" })
+
+      if (!monthly[month]) {
+        monthly[month] = 0
+      }
+
+      if (record.status === "Present") {
+        monthly[month] += 1
+      }
+
+    })
+
+    const labels = Object.keys(monthly)
+    const values = Object.values(monthly)
+
+    setAttendanceStats({
+      labels,
+      datasets: [
         {
-          ...newBatch,
-          branch: selectedBranch, // 🔥 auto set branch
-          strength: Number(newBatch.strength),
-          days: newBatch.days.join(","),
-        },
-      ])
+          label: "Monthly Attendance",
+          data: values,
+          backgroundColor: "#6366f1"
+        }
+      ]
+    })
+  }
+  useEffect(() => {
+    fetchAttendanceStats()
+  }, [])
+
+  const fetchStudentAttendanceCalendar = async (studentId) => {
+
+    const { data, error } = await supabase
+      .from("attendance")
+      .select("*")
+      .eq("student_id", studentId)
 
     if (error) {
       console.error(error)
-    } else {
-      fetchBatches(selectedBranch)
-      setShowModal(false)
-      setNewBatch({
-        name: "",
-        course: "",
-        trainer: "",
-        branch: "",
-        timing: "",
-        strength: "",
-        status: "Active",
-        days: [],
-      })
+      return
     }
+
+    const formatted = data.map((record) => ({
+      date: new Date(record.date),
+      status: record.status
+    }))
+
+    setStudentAttendanceDates(formatted)
+  }
+  const saveAttendance = async () => {
+
+    const today = new Date().toISOString().split("T")[0]
+
+    const records = batchStudents.map(student => ({
+      student_id: student.id,
+      student_name: student.name,
+      batch: selectedBatch.name,
+      date: today,
+      status: attendance[student.id] === "present" ? "Present" : "Absent"
+    }))
+
+    const { error } = await supabase
+      .from("attendance")
+      .insert(records)
+
+    if (error) {
+      console.error(error)
+      alert("Error saving attendance")
+    } else {
+      alert("Attendance saved successfully")
+    }
+
   }
 
-  const filteredBatches = batches.filter(
-    (b) =>
-      b.name.toLowerCase().includes(search.toLowerCase()) ||
-      b.course.toLowerCase().includes(search.toLowerCase()) ||
-      b.branch.toLowerCase().includes(search.toLowerCase())
-  )
+
+
+  const filteredBatches = batches
 
   return (
-
     <div className="batches-page">
+
       {/* HEADER */}
       <div className="batches-header">
         <h1>Batches</h1>
 
-        <div className="controls">
-          <input
-            type="text"
-            placeholder="Search batch..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
 
-          <button
-            className="add-btn"
-            disabled={!selectedBranch}
-            onClick={() => setShowModal(true)}
-          >
-            + Add Batch
-          </button>
-
-          <button
-            className="delete-btn"
-            disabled={selected.length === 0}
-            onClick={deleteSelected}
-          >
-            Delete Selected
-          </button>
-        </div>
-      </div>
-      <div className="branch-section">
-        <div className="branch-header">
-          <h2>Select Branch</h2>
-          <button className="add-branch-btn">+ Add Branch</button>
-        </div>
-
-        <div className="branch-list">
-          {branches.map((branch) => (
-            <button
-              key={branch.id}
-              className={`branch-pill ${selectedBranch === branch.name ? "active-branch" : ""
-                }`}
-              onClick={() => {
-                setSelectedBranch(branch.name)
-                setSelected([])
-                fetchBatches(branch.name)
-              }}
-            >
-              {branch.name}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* BATCH PILLS */}
-      {selectedBranch ? (
+      {selectedBranch && !showPopup && (
         <div className="batch-section">
           <h2>Select Batch</h2>
 
@@ -234,128 +511,705 @@ function Batches({ openAddModal }) {
             ))}
           </div>
         </div>
-      ) : (
-        <div style={{ textAlign: "center", padding: "40px" }}>
-          <h3>Please Select Branch First</h3>
-        </div>
       )}
 
       {/* BATCH DETAILS */}
       {selectedBatch && (
         <div className="batch-details-card">
-          <h3>{selectedBatch.name}</h3>
 
-          <div className="details-grid">
-            <div><strong>Course:</strong> {selectedBatch.course}</div>
-            <div><strong>Trainer:</strong> {selectedBatch.trainer}</div>
-            <div><strong>Branch:</strong> {selectedBatch.branch}</div>
-            <div><strong>Timing:</strong> {selectedBatch.timing}</div>
-            <div><strong>Students:</strong> {selectedBatch.strength}</div>
+          <div className="batch-top-row">
 
-            <div>
-              <strong>Status:</strong>{" "}
-              <span className={`status ${selectedBatch.status === "Active" ? "active" : "inactive"
-                }`}>
-                {selectedBatch.status}
-              </span>
+            <div className="batch-actions">
+              <button
+                className={activeTab === "details" ? "tab-btn active-tab" : "tab-btn"}
+                onClick={() => setActiveTab("details")}
+              >
+                Details
+              </button>
+
+              <button
+                className={activeTab === "students" ? "tab-btn active-tab" : "tab-btn"}
+                onClick={() => setActiveTab("students")}
+              >
+                Students
+              </button>
+
+              <button
+                className={activeTab === "attendance" ? "tab-btn active-tab" : "tab-btn"}
+                onClick={() => setActiveTab("attendance")}
+              >
+                Attendance
+              </button>
+
+              <button
+                className={activeTab === "trainer" ? "tab-btn active-tab" : "tab-btn"}
+                onClick={() => setActiveTab("trainer")}
+              >
+                Assign Trainer
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditing(true)
+                  setBatchName(selectedBatch.name)
+                  setBatchCourse(selectedBatch.course)
+                  setBatchBranch(selectedBatch.branch)
+                  setBatchTrainer(selectedBatch.trainer)
+                  setBatchTime(selectedBatch.timing)
+                  setBatchDays(selectedBatch.days?.split(", ") || [])
+                }}
+              >
+                Edit
+              </button>
             </div>
 
-            <div>
-              <strong>Days:</strong> {selectedBatch.days}
+            <div className="batch-meta">
+              <span><strong>Trainer:</strong> {selectedBatch.trainer}</span>
+              <span><strong>Students:</strong> {studentStrength}</span>
             </div>
+
+          </div>
+          {activeTab === "details" && (
+            <>
+              <div className="batch-title-row">
+
+                <h3 className="batch-name">{selectedBatch.name}</h3>
+
+                <div className="batch-time-days">
+                  <span><strong>Time:</strong> {selectedBatch.timing}</span>
+                  <span><strong>Days:</strong> {selectedBatch.days}</span>
+                </div>
+
+              </div>
+            </>
+          )}
+
+          {activeTab === "trainer" && (
+            <div>
+
+              <h3>Assign Trainer</h3>
+
+              <select
+                value={selectedTrainer}
+                onChange={(e) => setSelectedTrainer(e.target.value)}
+                style={{ padding: "10px", marginTop: "10px" }}
+              >
+                <option value="">Select Trainer</option>
+
+                {trainers.map((trainer) => (
+                  <option key={trainer.id} value={trainer.name}>
+                    {trainer.name}
+                  </option>
+                ))}
+              </select>
+
+              <div style={{ marginTop: "15px" }}>
+                <button onClick={assignTrainer}>
+                  Assign Trainer
+                </button>
+              </div>
+
+            </div>
+          )}
+          {activeTab === "students" && (
+            <div className="students-list">
+
+              <h3>Students Enrolled</h3>
+
+              {batchStudents.length === 0 ? (
+                <p>No students in this batch</p>
+              ) : (
+                <table className="students-table">
+
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Joining Date</th>
+                      <th>Fees Assigned</th>
+                      <th>Paid On</th>
+                      <th>Action</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {batchStudents.map((student) => (
+                      <tr
+                        key={student.id}
+                        className={student.status === "disabled" ? "disabled-row" : ""}
+                      >
+
+                        <td>{student.name}</td>
+
+                        <td>{student.join_date || "-"}</td>
+
+                        <td>{student.fees || "-"}</td>
+
+                        <td>
+                          <input
+                            type="text"
+                            value={student.paid_on || ""}
+                            placeholder="dd-mm-yyyy"
+                            className="date-input"
+                            readOnly
+                            onClick={() => {
+                              setPaymentStudent(student)
+                              setPaymentDate(new Date())
+                            }}
+                          />
+                        </td>
+
+                        <td className="action-buttons">
+
+                          <button
+                            className="view-btn"
+                            onClick={() => {
+                              setViewStudent(student)
+                              fetchStudentAttendanceCalendar(student.id)
+                            }}
+                          >
+                            View
+                          </button>
+
+                          <button
+                            className="edit-btn"
+                            onClick={() => setEditingStudent(student)}
+                          >
+                            Edit
+                          </button>
+
+                        </td>
+                        <td>
+
+                          <button
+                            className={student.status === "active" ? "active-btn" : "disable-btn"}
+                            onClick={() => toggleStudentStatus(student)}
+                          >
+                            {student.status === "active" ? "Active" : "Disabled"}
+                          </button>
+
+                        </td>
+
+                      </tr>
+                    ))}
+                  </tbody>
+
+                </table>
+              )}
+
+            </div>
+          )}
+          {activeTab === "attendance" && (
+            <div className="students-list">
+
+              <h3>Attendance</h3>
+
+              {batchStudents.length === 0 ? (
+                <p>No students in this batch</p>
+              ) : (
+                <>
+                  <table className="students-table attendance-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Present</th>
+                        <th>Absent</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {batchStudents
+                        .filter(student => student.status === "active")
+                        .map((student) => (
+                          <tr
+                            key={student.id}
+                            className={
+                              searchStudent?.id === student.id
+                                ? "highlight-student"
+                                : attendance[student.id] === "present"
+                                  ? "present-row"
+                                  : attendance[student.id] === "absent"
+                                    ? "absent-row"
+                                    : ""
+                            }
+                          >
+
+                            <td>{student.name}</td>
+
+                            <td>
+                              <button
+                                className="active-btn"
+                                onClick={() => markAttendance(student.id, "present")}
+                              >
+                                Present
+                              </button>
+                            </td>
+
+                            <td>
+                              <button
+                                className="disable-btn"
+                                onClick={() => markAttendance(student.id, "absent")}
+                              >
+                                Absent
+                              </button>
+                            </td>
+
+                          </tr>
+                        ))}
+                    </tbody>
+
+                  </table>
+
+
+                  <div style={{ marginTop: "20px" }}>
+                    <button
+                      className="add-btn"
+                      onClick={saveAttendance}
+                    >
+                      Save Attendance
+                    </button>
+                  </div>
+
+
+
+                </>
+
+
+
+              )}
+
+            </div>
+          )}
+        </div>
+      )
+      }
+
+      {/* BRANCH SELECT POPUP */}
+      {
+        showPopup && (
+          <div className="branch-popup-overlay">
+            <div className="branch-popup">
+
+              <button
+                className="close-popup"
+                onClick={() => setShowPopup(false)}
+              >
+                ✕
+              </button>
+
+              {popupStep === 1 && (
+                <>
+                  <h2>Please Select Branch</h2>
+                  <p>Select a branch to view batches</p>
+
+                  <div className="popup-branch-list">
+                    {branches.map((branch) => (
+                      <button
+                        key={branch.id}
+                        className="popup-branch-btn"
+                        onClick={() => {
+                          setSelectedBranch(branch.name)
+                          fetchBatches(branch.name)
+                          setPopupStep(2)
+                        }}
+                      >
+                        {branch.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {popupStep === 2 && (
+                <>
+                  <h2>Select Batch</h2>
+
+                  <div className="popup-branch-list">
+                    {filteredBatches.map((batch) => (
+                      <button
+                        key={batch.id}
+                        className="popup-branch-btn"
+                        onClick={() => {
+                          setSelectedBatch(batch)
+                          setShowPopup(false)
+                        }}
+                      >
+                        {batch.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+            </div>
+          </div>
+        )
+      }
+
+      {viewStudent && (
+        <div className="branch-popup-overlay">
+          <div className="student-profile-popup">
+
+            {/* LEFT SIDE */}
+            <div className="student-info">
+
+              <h2>Student Profile</h2>
+
+              <img
+                src={viewStudent.profile_photo}
+                alt="student"
+                className="student-photo"
+              />
+
+              <div className="student-details-grid">
+
+                <p><strong>Name:</strong> {viewStudent.name}</p>
+                <p><strong>Activity:</strong> {viewStudent.activity}</p>
+
+                <p><strong>Branch:</strong> {viewStudent.branch}</p>
+                <p><strong>Batch:</strong> {viewStudent.batch}</p>
+
+                <p><strong>Joining Date:</strong> {viewStudent.join_date}</p>
+                <p><strong>WhatsApp:</strong> {viewStudent["Whatsapp Number"]}</p>
+
+                <p><strong>Fees:</strong> ₹{viewStudent.fees}</p>
+                <p><strong>Date of Birth:</strong> {viewStudent.dob}</p>
+
+                <p><strong>Reference:</strong> {viewStudent.reference}</p>
+                <p><strong>Status:</strong> {viewStudent.status}</p>
+
+              </div>
+              <button
+                className="popup-close-btn"
+                onClick={() => setViewStudent(null)}
+              >
+                ✕
+              </button>
+
+            </div>
+
+            {/* RIGHT SIDE */}
+            <div className="student-chart">
+
+              <h3>Attendance Chart</h3>
+
+              <Calendar
+                tileClassName={({ date }) => {
+
+                  const record = studentAttendanceDates.find(
+                    (d) => d.date.toDateString() === date.toDateString()
+                  )
+
+                  if (!record) return null
+
+                  if (record.status === "Present") return "present-day"
+
+                  if (record.status === "Absent") return "absent-day"
+
+                }}
+              />
+
+            </div>
+
           </div>
         </div>
       )}
+      {/* ADD BRANCH POPUP */}
+      {
+        showAddBranchPopup && (
+          <div className="branch-popup-overlay">
+            <div className="branch-popup">
 
-      {/* ADD BATCH MODAL */}
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h2>Add Batch</h2>
+              <h2>Add Branch</h2>
 
-            <div className="modal-section">
-              <h4>Batch Details</h4>
-              <div className="modal-form">
-                <input
-                  placeholder="Batch Name"
-                  onChange={(e) =>
-                    setNewBatch({ ...newBatch, name: e.target.value })
-                  }
-                />
-                <input
-                  placeholder="Course"
-                  onChange={(e) =>
-                    setNewBatch({ ...newBatch, course: e.target.value })
-                  }
-                />
-                <input
-                  placeholder="Trainer"
-                  onChange={(e) =>
-                    setNewBatch({ ...newBatch, trainer: e.target.value })
-                  }
-                />
+              <input
+                type="text"
+                placeholder="Enter branch name"
+                value={branchName}
+                onChange={(e) => setBranchName(e.target.value)}
+                style={{
+                  padding: "10px",
+                  width: "220px",
+                  marginTop: "15px",
+                  borderRadius: "8px",
+                  border: "1px solid #ddd"
+                }}
+              />
 
-                <input
-                  placeholder="Timing (e.g. 9 AM - 11 AM)"
-                  onChange={(e) =>
-                    setNewBatch({ ...newBatch, timing: e.target.value })
-                  }
-                />
-                <input
-                  placeholder="Student Strength"
-                  onChange={(e) =>
-                    setNewBatch({ ...newBatch, strength: e.target.value })
-                  }
-                />
+              <div style={{ marginTop: "20px" }}>
+                <button onClick={addBranch}>Save</button>
+
+                <button
+                  style={{ marginLeft: "10px", background: "#e5e7eb", color: "#111" }}
+                  onClick={() => setShowAddBranchPopup(false)}
+                >
+                  Cancel
+                </button>
               </div>
-            </div>
-            <div className="days-section">
-              <h4>Select Working Days</h4>
 
-              <div className="days-grid">
-                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-                  <label
-                    key={day}
-                    className={`day-card ${newBatch.days.includes(day) ? "selected-day" : ""
-                      }`}
-                  >
+            </div>
+          </div>
+        )
+      }
+
+      {/* ADD BATCH POPUP */}
+      {
+        showAddBatchPopup && (
+          <div className="branch-popup-overlay">
+            <div className="branch-popup">
+
+              <h2>Add Batch</h2>
+              <h3 style={{ marginTop: "20px" }}>Existing Batches</h3>
+
+              <div className="existing-batches">
+
+                {batches.map((batch) => (
+                  <div key={batch.id} className="existing-batch-item">
+
+                    <span>{batch.name}</span>
+
+                    <button
+                      className="delete-batch-btn"
+                      onClick={() => deleteBatch(batch.id)}
+                    >
+                      Delete
+                    </button>
+
+                  </div>
+                ))}
+
+              </div>
+
+              <div className="batch-form-row">
+
+                <input
+                  type="text"
+                  placeholder="Batch Name"
+                  value={batchName}
+                  onChange={(e) => setBatchName(e.target.value)}
+                  className="batch-input"
+                />
+
+                <select
+                  value={batchCourse}
+                  onChange={(e) => setBatchCourse(e.target.value)}
+                  className="batch-input"
+                >
+                  <option value="">Select Activity</option>
+                  {courses.map((course) => (
+                    <option key={course.id} value={course.name}>
+                      {course.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={batchBranch}
+                  onChange={(e) => setBatchBranch(e.target.value)}
+                  className="batch-input"
+                >
+                  <option value="">Select Branch</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.name}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={batchTrainer}
+                  onChange={(e) => setBatchTrainer(e.target.value)}
+                  className="batch-input"
+                >
+                  <option value="">Select Trainer</option>
+                  {trainers.map((trainer) => (
+                    <option key={trainer.id} value={trainer.name}>
+                      {trainer.name}
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  type="time"
+                  value={batchTime}
+                  onChange={(e) => setBatchTime(e.target.value)}
+                  className="batch-input"
+                />
+                <div className="days-container">
+
+                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => (
+                    <label key={day} className="day-option">
+
+                      <input
+                        type="checkbox"
+                        checked={batchDays.includes(day)}
+                        onChange={() => toggleDay(day)}
+                      />
+
+                      {day}
+
+                    </label>
+                  ))}
+
+                </div>
+
+              </div>
+
+
+              <div style={{ marginTop: "20px" }}>
+                <button onClick={addBatch}>Save</button>
+
+                <button
+                  style={{ marginLeft: "10px" }}
+                  onClick={() => setShowAddBatchPopup(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )
+      }
+      {
+        isEditing && (
+          <div className="branch-popup-overlay">
+            <div className="branch-popup">
+
+              <h2>Edit Batch</h2>
+
+              <div className="batch-form-row">
+
+                <input
+                  type="text"
+                  value={batchName}
+                  onChange={(e) => setBatchName(e.target.value)}
+                  className="batch-input"
+                />
+
+                <select
+                  value={batchCourse}
+                  onChange={(e) => setBatchCourse(e.target.value)}
+                  className="batch-input"
+                >
+                  {courses.map((course) => (
+                    <option key={course.id} value={course.name}>
+                      {course.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={batchBranch}
+                  onChange={(e) => setBatchBranch(e.target.value)}
+                  className="batch-input"
+                >
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.name}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={batchTrainer}
+                  onChange={(e) => setBatchTrainer(e.target.value)}
+                  className="batch-input"
+                >
+                  {trainers.map((trainer) => (
+                    <option key={trainer.id} value={trainer.name}>
+                      {trainer.name}
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  type="time"
+                  value={batchTime}
+                  onChange={(e) => setBatchTime(e.target.value)}
+                  className="batch-input"
+                />
+
+              </div>
+
+              <div className="days-container">
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => (
+                  <label key={day} className="day-option">
                     <input
                       type="checkbox"
-                      checked={newBatch.days.includes(day)}
-                      onChange={() => {
-                        if (newBatch.days.includes(day)) {
-                          setNewBatch({
-                            ...newBatch,
-                            days: newBatch.days.filter((d) => d !== day),
-                          })
-                        } else {
-                          setNewBatch({
-                            ...newBatch,
-                            days: [...newBatch.days, day],
-                          })
-                        }
-                      }}
+                      checked={batchDays.includes(day)}
+                      onChange={() => toggleDay(day)}
                     />
-                    <span>{day}</span>
+                    {day}
                   </label>
                 ))}
               </div>
+
+              <div style={{ marginTop: "20px" }}>
+                <button onClick={updateBatch}>Update</button>
+
+                <button
+                  style={{ marginLeft: "10px" }}
+                  onClick={() => setIsEditing(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )
+      }
+      {paymentStudent && (
+        <div className="branch-popup-overlay">
+          <div className="branch-popup">
+
+            <h3>Select Payment Date</h3>
+
+            <div className="payment-calendar">
+              <Calendar
+                value={paymentDate}
+                onChange={(date) => setPaymentDate(date)}
+                showNeighboringMonth={false}
+              />
             </div>
 
-            <div className="modal-actions">
-              <button className="cancel" onClick={() => setShowModal(false)}>
+            <div style={{ marginTop: "15px" }}>
+              <button
+                onClick={async () => {
+
+                  const formattedDate =
+                    paymentDate.toISOString().split("T")[0]
+
+                  const { error } = await supabase
+                    .from("students")
+                    .update({ paid_on: formattedDate })
+                    .eq("id", paymentStudent.id)
+
+                  if (error) {
+                    console.error(error)
+                  } else {
+
+                    fetchBatchStudents(selectedBatch.name)
+
+                    setPaymentStudent(null)
+                  }
+                }}
+              >
+                Save
+              </button>
+
+              <button
+                style={{ marginLeft: "10px" }}
+                onClick={() => setPaymentStudent(null)}
+              >
                 Cancel
               </button>
-              <button className="save" onClick={addBatch}>
-                Save Batch
-              </button>
             </div>
+
           </div>
         </div>
       )}
-    </div>
-
+    </div >
   )
 }
-
 export default Batches

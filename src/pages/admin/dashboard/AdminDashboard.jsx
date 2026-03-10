@@ -5,6 +5,11 @@ import Students from "../students/Students"
 import Batches from "../batches/Batches"
 import Courses from "../courses/courses"
 import UpdateFees from "../fees/UpdateFees"
+import Attendance from "../attendance/Attendance"
+import StudentsList from "../students/StudentsList"
+import AttendanceReport from "../attendance/AttendanceReport"
+import Trainers from "../trainers/Trainers"
+import Reports from "../reports/Reports"
 import { supabase } from "../../../services/supabase"
 import {
   Chart as ChartJS,
@@ -42,11 +47,18 @@ function AdminDashboard() {
     students: 0,
     trainers: 0,
     batches: 0,
+    revenue: 0,
+    profit: 0
   })
   const [upcomingClasses, setUpcomingClasses] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState([])
-
+  const [toast, setToast] = useState(null)
+  const [attendanceBatch, setAttendanceBatch] = useState(null)
+  const [searchResults, setSearchResults] = useState([])
+  const [selectedSearchStudent, setSelectedSearchStudent] = useState(null)
+  const [dbSize, setDbSize] = useState(0)
+  const DB_LIMIT = 500 * 1024 * 1024
   // 📂 Excel Upload Handler
   const handleExcelUpload = (e) => {
     const file = e.target.files[0]
@@ -67,6 +79,28 @@ function AdminDashboard() {
     }
 
     reader.readAsBinaryString(file)
+  }
+
+  const searchStudents = async (query) => {
+
+    setSearchQuery(query)
+
+    if (!query.trim()) {
+      setSearchResults([])
+      return
+    }
+
+    const { data, error } = await supabase
+      .from("students")
+      .select("*")
+      .ilike("name", `%${query}%`)
+
+    if (error) {
+      console.error(error)
+    } else {
+      setSearchResults(data)
+    }
+
   }
 
 
@@ -139,22 +173,64 @@ function AdminDashboard() {
       const { count: batchCount } = await supabase
         .from("batches")
         .select("*", { count: "exact", head: true })
+      const { data: students } = await supabase
+        .from("students")
+        .select("fees")
 
+      const totalRevenue = (students || []).reduce(
+        (sum, s) => sum + (Number(s.fees) || 0),
+        0
+      )
+
+      const { data: trainers } = await supabase
+        .from("trainers")
+        .select("salary")
+
+      const trainerSalary = (trainers || []).reduce(
+        (sum, t) => sum + (Number(t.salary) || 0),
+        0
+      )
+
+      const netProfit = totalRevenue - trainerSalary
       // Fetch upcoming classes (next 5 classes)
-      const today = new Date().toISOString()
-
-      const { data: upcomingData } = await supabase
+      const { data: batchData } = await supabase
         .from("batches")
-        .select("batch_name, start_date")
-        .gte("start_date", today)
-        .order("start_date", { ascending: true })
-        .limit(5)
+        .select("*")
 
-      setUpcomingClasses(upcomingData || [])
+      const today = new Date()
+      const dayName = today.toLocaleDateString("en-US", { weekday: "short" })
+
+      const now = new Date()
+      const currentMinutes = now.getHours() * 60 + now.getMinutes()
+
+      const todayClasses = batchData
+        ?.filter(batch =>
+          batch.days && batch.days.includes(dayName)
+        )
+        .sort((a, b) => {
+
+          const [ah, am] = a.timing.split(":").map(Number)
+          const [bh, bm] = b.timing.split(":").map(Number)
+
+          const aMinutes = ah * 60 + am
+          const bMinutes = bh * 60 + bm
+
+          const aDiff = Math.abs(aMinutes - currentMinutes)
+          const bDiff = Math.abs(bMinutes - currentMinutes)
+
+          return aDiff - bDiff
+        })
+        .slice(0, 5)
+
+      setUpcomingClasses(todayClasses || [])
+
+
       setStats({
-        students: studentCount || 0,
-        trainers: trainerCount || 0,
-        batches: batchCount || 0,
+        students: studentCount ?? 0,
+        trainers: trainerCount ?? 0,
+        batches: batchCount ?? 0,
+        revenue: totalRevenue,
+        profit: netProfit
       })
     }
 
@@ -193,6 +269,170 @@ function AdminDashboard() {
 
     checkBirthdays()
   }, [])
+  useEffect(() => {
+
+    const loadNotifications = async () => {
+
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .order("created_at", { ascending: false })
+
+      if (error) {
+        console.error("Notification error:", error)
+        return
+      }
+
+      if (data) {
+        const messages = data.map(n => n.message)
+        setNotifications(messages)
+
+        if (messages.length > 0) {
+
+          const latestMessage = messages[0]
+          const lastShown = localStorage.getItem("lastToast")
+
+          if (latestMessage !== lastShown) {
+
+            setToast(latestMessage)
+
+            localStorage.setItem("lastToast", latestMessage)
+
+            setTimeout(() => {
+              setToast(null)
+            }, 7000)
+
+          }
+
+        }
+      }
+
+    }
+
+    loadNotifications()
+
+  }, [])
+
+  useEffect(() => {
+
+    const channel = supabase
+      .channel("notifications-channel")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+        },
+        (payload) => {
+
+          const message = payload.new.message
+
+          // update notification list
+          setNotifications(prev => [message, ...prev])
+
+          // show toast instantly
+          setToast(message)
+
+          setTimeout(() => {
+            setToast(null)
+          }, 3000)
+
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+
+  }, [])
+
+  useEffect(() => {
+
+    const checkClassNotifications = () => {
+
+      const now = new Date()
+      const currentMinutes = now.getHours() * 60 + now.getMinutes()
+
+      upcomingClasses.forEach(cls => {
+
+        if (!cls.timing) return
+
+        const [hour, minute] = cls.timing.split(":").map(Number)
+        const classMinutes = hour * 60 + minute
+
+        const diff = classMinutes - currentMinutes
+
+        // 10 minutes before class
+        if (diff === 10) {
+          setNotifications(prev => [
+            ...prev,
+            `⏰ ${cls.name} will start in 10 minutes`
+          ])
+          setShowNotifications(true)
+        }
+
+        // class start
+        if (diff === 0) {
+          setNotifications(prev => [
+            ...prev,
+            `▶ ${cls.name} class has started`
+          ])
+          setShowNotifications(true)
+        }
+
+      })
+
+    }
+
+    const interval = setInterval(checkClassNotifications, 60000)
+
+    return () => clearInterval(interval)
+
+  }, [upcomingClasses])
+  useEffect(() => {
+
+    fetchDatabaseSize()
+
+    const interval = setInterval(() => {
+      fetchDatabaseSize()
+    }, 15000)
+
+    return () => clearInterval(interval)
+
+  }, [])
+  const clearNotifications = async () => {
+
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .gte("id", 0)   // delete all notifications safely
+
+    if (error) {
+      console.error("Delete error:", error)
+      return
+    }
+
+    // clear UI
+    setNotifications([])
+    localStorage.removeItem("lastToast")
+
+  }
+
+  const fetchDatabaseSize = async () => {
+
+    const { data, error } = await supabase.rpc("get_database_size")
+
+    if (error) {
+      console.error(error)
+      return
+    }
+
+    setDbSize(data)
+
+  }
+
 
   const saveToDatabase = async () => {
     try {
@@ -242,9 +482,18 @@ function AdminDashboard() {
 
           <button
             className="active-tab"
-            onClick={() => setActiveTab("dashboard")}
+            onClick={() => setActiveTab("addStudent")}
           >
-            Dashboard
+            Student Registration
+          </button>
+          <button
+            className="active-tab"
+            onClick={() => {
+              setActiveTab("dashboard")
+              setSelectedSearchStudent(null)   // reset search student
+            }}
+          >
+            Back
           </button>
 
           {/* 🔔 Notification Button */}
@@ -276,39 +525,72 @@ function AdminDashboard() {
               placeholder="Search students, data, reports..."
               className="dashboard-search"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => searchStudents(e.target.value)}
             />
 
-            <button
-              className="shortcut-btn"
-              onClick={() => setActiveTab("updateFees")}
-            >
-              Update Fees Status
-            </button>
-            <button
-              className="shortcut-btn"
-              onClick={() => setActiveTab("addStudent")}
-            >
-              + Add Student
-            </button>
+            {searchResults.length > 0 && (
+              <div className="search-results">
+                {searchResults.map((student) => (
+                  <div
+                    key={student.id}
+                    className="search-item"
+                    onClick={() => {
 
-            <button
-              className="shortcut-btn"
-              onClick={() => {
-                setActiveTab("batches")
-                setOpenBatchModal(true)
-                setTimeout(() => setOpenBatchModal(false), 100)
-              }}
-            >
-              + Add Batch
-            </button>
+                      setSelectedSearchStudent(student)
 
-            <button
-              className="shortcut-btn"
-              onClick={() => setActiveTab("courses")}
-            >
-              + Add Activity
-            </button>
+                      setSearchQuery("")
+                      setSearchResults([])
+
+                      setActiveTab("batches")
+
+                    }}
+                  >
+                    <strong>{student.name}</strong>
+                    <span className="search-meta">
+                      {student.batch} • {student.branch}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="stats-panel">
+              <h3>Academy Overview</h3>
+
+              <div className="stats-cards">
+
+                <div
+                  className="stat-card clickable-card"
+                  onClick={() => setActiveTab("studentsList")}
+                >
+                  <span>Total Students</span>
+                  <h2>{stats.students}</h2>
+                </div>
+
+                <div className="stat-card">
+                  <span>Total Trainers</span>
+                  <h2>{stats.trainers}</h2>
+                </div>
+
+                <div className="stat-card">
+                  <span>Total Batches</span>
+                  <h2>{stats.batches}</h2>
+                </div>
+                <div className="stat-card">
+                  <span>Total Revenue</span>
+                  <h2>₹{stats.revenue}</h2>
+                </div>
+
+                <div className="stat-card">
+                  <span>Net Profit</span>
+                  <h2>₹{stats.profit}</h2>
+                </div>
+
+              </div>
+            </div>
+
+
+            {/* Reports Section */}
+            <Reports />
 
           </div>
 
@@ -324,33 +606,32 @@ function AdminDashboard() {
               ) : (
                 upcomingClasses.map((item, index) => (
                   <div key={index} className="upcoming-item">
-                    <div className="upcoming-name">{item.batch_name}</div>
+                    <div className="upcoming-name">{item.name}</div>
                     <div className="upcoming-date">
-                      {new Date(item.start_date).toLocaleDateString()}
+                      {item.timing}
                     </div>
                   </div>
                 ))
               )}
             </div>
 
-            {/* Academy Overview */}
-            <div className="stats-panel">
-              <h3>Academy Overview</h3>
+            <div className="storage-panel">
 
-              <div className="stat-card">
-                <span>Total Students</span>
-                <h2>{stats.students}</h2>
+              <h3>Database Usage</h3>
+
+              <div className="storage-bar">
+                <div
+                  className="storage-fill"
+                  style={{
+                    width: `${(dbSize / DB_LIMIT) * 100}%`
+                  }}
+                ></div>
               </div>
 
-              <div className="stat-card">
-                <span>Total Trainers</span>
-                <h2>{stats.trainers}</h2>
-              </div>
+              <p>
+                {(dbSize / 1024 / 1024).toFixed(2)} MB / 500 MB used
+              </p>
 
-              <div className="stat-card">
-                <span>Total Batches</span>
-                <h2>{stats.batches}</h2>
-              </div>
             </div>
 
           </div>
@@ -430,21 +711,42 @@ function AdminDashboard() {
               )}
             </div>
           )}
+
         </>
       )}
       {activeTab === "addStudent" && (
         <Students />
       )}
+      {activeTab === "studentsList" && (
+        <StudentsList
+          goBack={() => setActiveTab("dashboard")}
+        />
+      )}
       {activeTab === "updateFees" && (
         <UpdateFees />
       )}
+      {activeTab === "attendanceReport" && (
+        <AttendanceReport />
+      )}
 
       {activeTab === "batches" && (
-        <Batches openAddModal={openBatchModal} />
+        <Batches
+          openAddModal={openBatchModal}
+          searchStudent={selectedSearchStudent}
+        />
       )}
 
       {activeTab === "courses" && (
         <Courses />
+      )}
+      {activeTab === "attendance" && (
+        <Attendance
+          batchName={attendanceBatch}
+          goBack={() => setActiveTab("dashboard")}
+        />
+      )}
+      {activeTab === "trainers" && (
+        <Trainers />
       )}
       {/* Upload Modal */}
       {showUploadModal && (
@@ -511,9 +813,21 @@ function AdminDashboard() {
           <div className="notification-panel">
             <div className="notification-header">
               <h3>Notifications</h3>
-              <button onClick={() => setShowNotifications(false)}>
-                ✖
-              </button>
+
+              <div className="notification-actions">
+
+                <button
+                  className="clear-btn"
+                  onClick={clearNotifications}
+                >
+                  Clear
+                </button>
+
+                <button onClick={() => setShowNotifications(false)}>
+                  ✖
+                </button>
+
+              </div>
             </div>
 
             <div className="notification-body">
@@ -521,7 +835,18 @@ function AdminDashboard() {
                 <p>No new notifications</p>
               ) : (
                 notifications.map((note, index) => (
-                  <div key={index} className="notification-item">
+                  <div
+                    key={index}
+                    className="notification-item"
+                    onClick={() => {
+
+                      if (note.includes("trainer registration")) {
+                        setActiveTab("trainers")
+                        setShowNotifications(false)
+                      }
+
+                    }}
+                  >
                     {note}
                   </div>
                 ))
@@ -529,6 +854,11 @@ function AdminDashboard() {
             </div>
           </div>
         </>
+      )}
+      {toast && (
+        <div className="toast-notification">
+          {toast}
+        </div>
       )}
     </div>
   )

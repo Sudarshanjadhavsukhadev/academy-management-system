@@ -25,6 +25,18 @@ const TrainerRegister = () => {
     const [batches, setBatches] = useState([])
     const [branches, setBranches] = useState([])
     const [courses, setCourses] = useState([])
+    const fetchBranches = async () => {
+        const { data, error } = await supabase
+            .from("branches")
+            .select("*")
+            .order("id", { ascending: true })
+
+        if (error) {
+            console.error(error)
+        } else {
+            setBranches(data.map(branch => branch.name))
+        }
+    }
     const fetchBatches = async () => {
         const { data, error } = await supabase
             .from("batches")
@@ -32,16 +44,10 @@ const TrainerRegister = () => {
 
         if (!error) {
             setBatches(data)
-
-            const uniqueBranches = [
-                ...new Set(data.map(b => b.branch))
-            ]
-
-            setBranches(uniqueBranches)
         }
     }
-
     useEffect(() => {
+        fetchBranches()
         fetchBatches()
     }, [])
     useEffect(() => {
@@ -166,8 +172,16 @@ const TrainerRegister = () => {
         // 4️⃣ LOGIN SUCCESS
         localStorage.setItem("trainerToken", userId)
         // 4️⃣ SUCCESS
+        await supabase
+            .from("notifications")
+            .insert([
+                {
+                    message: `🆕 New trainer registration request from ${formData.name}`
+                }
+            ])
         resetForm()
-       alert("Registration submitted. Wait for admin approval.")
+
+        alert("Registration submitted. Wait for admin approval.")
 
 
     }
@@ -186,42 +200,47 @@ const TrainerRegister = () => {
                 <p>Create your trainer account</p>
 
                 <form onSubmit={handleSubmit} autoComplete="off">
+                    <label>Full Name</label>
                     <input
                         type="text"
                         name="name"
-                        placeholder="Full Name"
+                        placeholder="Enter full name"
                         value={formData.name}
                         onChange={handleChange}
                         required
                     />
 
+                    <label>Mobile Number</label>
                     <input
                         type="tel"
                         name="mobile"
-                        placeholder="Mobile Number"
+                        placeholder="Enter mobile number"
                         value={formData.mobile}
                         onChange={handleChange}
                         required
                     />
 
+                    <label>Email Address</label>
                     <input
                         type="email"
                         name="email"
-                        placeholder="Email Address"
+                        placeholder="Enter email address"
                         value={formData.email}
                         onChange={handleChange}
                         required
                     />
 
+                    <label>Password</label>
                     <input
                         type="password"
                         name="password"
-                        placeholder="Password"
+                        placeholder="Enter password"
                         value={formData.password}
                         onChange={handleChange}
                         required
                     />
 
+                    <label>Select Branch</label>
                     <select
                         name="branch"
                         value={formData.branch}
@@ -239,26 +258,28 @@ const TrainerRegister = () => {
 
                     {/* Course */}
                     {formData.branch && (
-                        <select
-                            name="course"
-                            value={formData.course}
-                            onChange={handleChange}
-                            required
-                        >
-                            <option value="">Select Course</option>
+                        <>
+                            <label>Select Course</label>
+                            <select
+                                name="course"
+                                value={formData.course}
+                                onChange={handleChange}
+                                required
+                            >
+                                <option value="">Select Course</option>
 
-                            {courses.map(course => (
-                                <option key={course} value={course}>
-                                    {course}
-                                </option>
-                            ))}
-                        </select>
+                                {courses.map(course => (
+                                    <option key={course} value={course}>
+                                        {course}
+                                    </option>
+                                ))}
+                            </select>
+                        </>
                     )}
-
                     {/* Batches */}
                     {formData.course && (
                         <div className="checkbox-group">
-                            <p>Available Batches ({availableBatches.length})</p>
+                            <label>Available Batches ({availableBatches.length})</label>
 
                             {availableBatches.map(batch => (
                                 <label key={batch.id}>
