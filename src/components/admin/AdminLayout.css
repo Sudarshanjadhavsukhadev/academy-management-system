@@ -149,3 +149,31 @@
   background-color: #4f46e5;
   color: white;
 }
+.sidebar{
+display:flex;
+flex-direction:column;
+height:100vh;
+}
+
+.menu{
+flex:1;
+}
+.sidebar-company{
+margin:20px;
+padding:14px 12px;
+border-radius:12px;
+background:rgba(255,255,255,0.06);
+color:#cbd5e1;
+text-align:center;
+font-size:13px;
+font-weight:500;
+letter-spacing:0.4px;
+}
+
+.sidebar-company span{
+display:block;
+margin-top:4px;
+font-size:15px;
+font-weight:700;
+color:white;
+}

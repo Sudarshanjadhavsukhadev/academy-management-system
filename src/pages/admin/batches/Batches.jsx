@@ -62,10 +62,19 @@ function Batches({ searchStudent }) {
   const [editingStudent, setEditingStudent] = useState(null)
   const [paymentStudent, setPaymentStudent] = useState(null)
   const [paymentDate, setPaymentDate] = useState(new Date())
+  const [monthsPaid, setMonthsPaid] = useState(1)
   const [attendance, setAttendance] = useState({})
   const [attendanceStats, setAttendanceStats] = useState([])
   const [studentAttendanceChart, setStudentAttendanceChart] = useState(null)
   const [studentAttendanceDates, setStudentAttendanceDates] = useState([])
+  const [lastAttendance, setLastAttendance] = useState({})
+  const [messagePopup, setMessagePopup] = useState("")
+  const [editImageSrc, setEditImageSrc] = useState(null)
+  const [editCrop, setEditCrop] = useState({ x: 0, y: 0 })
+  const [editZoom, setEditZoom] = useState(1)
+  const [editCroppedAreaPixels, setEditCroppedAreaPixels] = useState(null)
+  const [showEditCropModal, setShowEditCropModal] = useState(false)
+  const [photoUploading, setPhotoUploading] = useState(false)
   const fetchBranches = async () => {
     const { data, error } = await supabase
       .from("branches")
@@ -127,18 +136,36 @@ function Batches({ searchStudent }) {
       const nextDue = new Date(today.getFullYear(), today.getMonth(), joinDate.getDate())
 
       // if today's date passed the due date and payment exists
-      if (today >= nextDue && student.paid_on) {
 
-        await supabase
-          .from("students")
-          .update({ paid_on: null })
-          .eq("id", student.id)
-
-        student.paid_on = null
-      }
     }
 
     setBatchStudents(data)
+  }
+  const fetchLastAttendance = async (batchName) => {
+
+    const { data, error } = await supabase
+      .from("attendance")
+      .select("student_id, date")
+      .eq("batch", batchName)
+      .order("date", { ascending: false })
+
+    if (error) {
+      console.error(error)
+      return
+    }
+
+    const map = {}
+
+    data.forEach(record => {
+
+      if (!map[record.student_id]) {
+        map[record.student_id] = record.date   // 🔥 first = latest
+      }
+
+    })
+
+    setLastAttendance(map)
+
   }
   const fetchCourses = async () => {
     const { data, error } = await supabase
@@ -302,11 +329,17 @@ function Batches({ searchStudent }) {
     setSelectedTrainer("")
   }, [selectedBatch])
   useEffect(() => {
-    if (selectedBatch) {
-      fetchStudentStrength(selectedBatch.name)
-      fetchBatchStudents(selectedBatch.name)
-    }
-  }, [selectedBatch])
+
+    if (!selectedBatch) return
+
+    setBatchStudents([])        // 🔥 clear old students
+    setAttendance({})           // 🔥 clear old attendance
+
+    fetchBatchStudents(selectedBatch.name)
+    fetchStudentStrength(selectedBatch.name)
+    fetchLastAttendance(selectedBatch.name)
+
+  }, [selectedBatch?.id])
 
   useEffect(() => {
 
@@ -454,7 +487,10 @@ function Batches({ searchStudent }) {
 
     setStudentAttendanceDates(formatted)
   }
+
   const saveAttendance = async () => {
+
+
 
     const today = new Date().toISOString().split("T")[0]
 
@@ -472,26 +508,141 @@ function Batches({ searchStudent }) {
 
     if (error) {
       console.error(error)
-      alert("Error saving attendance")
+      setMessagePopup("❌ Error saving attendance")
     } else {
-      alert("Attendance saved successfully")
+
+      setMessagePopup("✅ Attendance saved successfully")
+
+      fetchLastAttendance(selectedBatch.name)
+
+      // ⭐⭐⭐⭐⭐ VERY VERY IMPORTANT ⭐⭐⭐⭐⭐
+      if (viewStudent) {
+        fetchStudentAttendanceCalendar(viewStudent.id)
+      }
+
     }
 
   }
 
 
-
   const filteredBatches = batches
+
+  const canMarkAttendance = () => {
+
+    if (!selectedBatch) return false
+
+    const today = new Date()
+
+    const todayName = today.toLocaleString("en-US", { weekday: "short" }) // Mon
+
+    const batchDays = selectedBatch.days?.split(", ").map(d => d.trim())
+
+    if (!batchDays.includes(todayName)) return false
+
+    const [h, m] = selectedBatch.timing.split(":")
+
+    const classTime = new Date()
+    classTime.setHours(h)
+    classTime.setMinutes(m)
+    classTime.setSeconds(0)
+
+    if (today < classTime) return false
+
+    // 🔥 check already marked today
+    const todayDate = today.toISOString().split("T")[0]
+
+    const alreadyMarked = Object.values(lastAttendance).includes(todayDate)
+
+    if (alreadyMarked) return false
+
+    return true
+  }
+
+  const getTileClass = ({ date }) => {
+
+    const todayStr = new Date().toDateString()
+
+    // ⭐ DO NOT COLOR TODAY
+    if (date.toDateString() === todayStr) {
+      return null
+    }
+
+    // attendance record
+    const record = studentAttendanceDates.find(
+      (d) => d.date.toDateString() === date.toDateString()
+    )
+
+    if (record) {
+      if (record.status === "Present") return "present-day"
+      if (record.status === "Absent") return "absent-day"
+    }
+
+    // batch class day logic
+    if (selectedBatch?.days) {
+
+      const batchDays = selectedBatch.days.split(", ").map(d => d.trim())
+
+      const dayName = date.toLocaleString("en-US", { weekday: "short" })
+
+      if (batchDays.includes(dayName)) {
+        return "class-day"
+      }
+
+    }
+
+    return null
+  }
+  const getTileContent = ({ date }) => {
+
+    if (!selectedBatch?.days) return null
+
+    const batchDays = selectedBatch.days.split(", ").map(d => d.trim())
+
+    const dayName = date.toLocaleString("en-US", { weekday: "short" })
+
+    const record = studentAttendanceDates.find(
+      (d) => d.date.toDateString() === date.toDateString()
+    )
+
+    // if attendance marked → don't show class text
+    if (record) return null
+
+    if (batchDays.includes(dayName)) {
+      return <div className="class-text">CLASS</div>
+    }
+
+  }
 
   return (
     <div className="batches-page">
 
       {/* HEADER */}
-      <div className="batches-header">
-        <h1>Batches</h1>
 
+      {/* BRANCH PILLS */}
+      {!showPopup && (
+        <div className="batch-section">
+          <h2>Select Branch</h2>
 
-      </div>
+          <div className="batch-list">
+
+            {branches.map(branch => (
+              <button
+                key={branch.id}
+                className={`batch-pill ${selectedBranch === branch.name ? "active-batch" : ""
+                  }`}
+                onClick={() => {
+                  setSelectedBranch(branch.name)
+                  setSelectedBatch(null)   // ⭐ reset batch
+                  fetchBatches(branch.name)
+                }}
+              >
+                {branch.name}
+              </button>
+            ))}
+
+          </div>
+        </div>
+      )}
 
       {/* BATCH PILLS */}
       {selectedBranch && !showPopup && (
@@ -625,7 +776,10 @@ function Batches({ searchStudent }) {
                       <th>Name</th>
                       <th>Joining Date</th>
                       <th>Fees Assigned</th>
+
                       <th>Paid On</th>
+                      <th>Last Paid</th>
+                      <th>Next Due</th>
                       <th>Action</th>
                       <th>Status</th>
                     </tr>
@@ -635,7 +789,19 @@ function Batches({ searchStudent }) {
                     {batchStudents.map((student) => (
                       <tr
                         key={student.id}
-                        className={student.status === "disabled" ? "disabled-row" : ""}
+                        className={
+                          student.status === "disabled"
+                            ? "disabled-row"
+                            : student.next_due_date &&
+                              new Date(student.next_due_date) >
+                              new Date(
+                                new Date(student.last_payment_date).setMonth(
+                                  new Date(student.last_payment_date).getMonth() + 1
+                                )
+                              )
+                              ? "advance-row"
+                              : ""
+                        }
                       >
 
                         <td>{student.name}</td>
@@ -644,19 +810,31 @@ function Batches({ searchStudent }) {
 
                         <td>{student.fees || "-"}</td>
 
+
+
                         <td>
-                          <input
-                            type="text"
-                            value={student.paid_on || ""}
-                            placeholder="dd-mm-yyyy"
-                            className="date-input"
-                            readOnly
+                          <button
+                            className="mark-fees-btn"
                             onClick={() => {
                               setPaymentStudent(student)
                               setPaymentDate(new Date())
+                              setMonthsPaid(1)
                             }}
-                          />
+                          >
+                            Mark Fees
+                          </button>
                         </td>
+                        <td>
+                          {student.last_payment_date
+                            ? new Date(student.last_payment_date).toLocaleDateString()
+                            : "-"}
+                        </td>
+                        <td>
+                          {student.next_due_date
+                            ? new Date(student.next_due_date).toLocaleDateString()
+                            : "-"}
+                        </td>
+
 
                         <td className="action-buttons">
 
@@ -711,14 +889,21 @@ function Batches({ searchStudent }) {
                     <thead>
                       <tr>
                         <th>Name</th>
+                        <th>Last Attendance</th>
                         <th>Present</th>
                         <th>Absent</th>
                       </tr>
                     </thead>
 
+                    {!canMarkAttendance() && (
+                      <p style={{ color: "red", marginBottom: "10px" }}>
+                        Attendance already marked or class not started yet
+                      </p>
+                    )}
+
                     <tbody>
                       {batchStudents
-                        .filter(student => student.status === "active")
+                        .filter(student => student.status !== "disabled")
                         .map((student) => (
                           <tr
                             key={student.id}
@@ -736,7 +921,14 @@ function Batches({ searchStudent }) {
                             <td>{student.name}</td>
 
                             <td>
+                              {lastAttendance[student.id]
+                                ? new Date(lastAttendance[student.id]).toLocaleDateString()
+                                : "Not Marked"}
+                            </td>
+
+                            <td>
                               <button
+                                disabled={!canMarkAttendance()}
                                 className="active-btn"
                                 onClick={() => markAttendance(student.id, "present")}
                               >
@@ -753,6 +945,8 @@ function Batches({ searchStudent }) {
                               </button>
                             </td>
 
+
+
                           </tr>
                         ))}
                     </tbody>
@@ -762,6 +956,7 @@ function Batches({ searchStudent }) {
 
                   <div style={{ marginTop: "20px" }}>
                     <button
+                      disabled={!canMarkAttendance()}
                       className="add-btn"
                       onClick={saveAttendance}
                     >
@@ -893,19 +1088,8 @@ function Batches({ searchStudent }) {
               <h3>Attendance Chart</h3>
 
               <Calendar
-                tileClassName={({ date }) => {
-
-                  const record = studentAttendanceDates.find(
-                    (d) => d.date.toDateString() === date.toDateString()
-                  )
-
-                  if (!record) return null
-
-                  if (record.status === "Present") return "present-day"
-
-                  if (record.status === "Absent") return "absent-day"
-
-                }}
+                tileClassName={getTileClass}
+                tileContent={getTileContent}
               />
 
             </div>
@@ -1173,26 +1357,56 @@ function Batches({ searchStudent }) {
               />
             </div>
 
+            <p style={{
+              marginTop: "15px",
+              fontSize: "12px",
+              color: "#9ca3af"
+            }}>
+              Leave empty for current month or select advance months
+            </p>
+
+            <input
+              type="number"
+              min="1"
+              value={monthsPaid}
+              onChange={(e) => setMonthsPaid(Number(e.target.value) || 1)}
+              style={{
+                padding: "10px",
+                marginTop: "5px",
+                width: "140px",
+                borderRadius: "8px",
+                border: "1px solid #ddd"
+              }}
+            />
+
             <div style={{ marginTop: "15px" }}>
+
               <button
+                className="add-btn"
                 onClick={async () => {
 
-                  const formattedDate =
-                    paymentDate.toISOString().split("T")[0]
+                  const selectedDate = new Date(paymentDate)
+
+                  const nextDue = new Date(selectedDate)
+                  nextDue.setMonth(nextDue.getMonth() + monthsPaid)
 
                   const { error } = await supabase
                     .from("students")
-                    .update({ paid_on: formattedDate })
+                    .update({
+                      last_payment_date: selectedDate.toISOString().split("T")[0],
+                      next_due_date: nextDue.toISOString().split("T")[0],
+                      fees_status: "Paid"
+                    })
                     .eq("id", paymentStudent.id)
 
-                  if (error) {
-                    console.error(error)
-                  } else {
+                  if (!error) {
 
                     fetchBatchStudents(selectedBatch.name)
 
                     setPaymentStudent(null)
+
                   }
+
                 }}
               >
                 Save
@@ -1204,10 +1418,265 @@ function Batches({ searchStudent }) {
               >
                 Cancel
               </button>
+
             </div>
 
           </div>
         </div>
+      )}
+      {messagePopup && (
+        <div className="message-popup">
+          <div className="message-box">
+
+            <p>{messagePopup}</p>
+
+            <button onClick={() => setMessagePopup("")}>
+              OK
+            </button>
+
+          </div>
+        </div>
+      )}
+
+      {editingStudent && (
+        <div className="profile-overlay">
+          <div className="profile-edit-card">
+
+            <h2 className="profile-title">Edit Student Profile</h2>
+
+            <div className="profile-edit-body">
+
+              {/* LEFT PHOTO */}
+              <div className="profile-photo-section">
+
+                <img
+                  src={editingStudent.profile_photo}
+                  className="profile-photo-big"
+                />
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  id="editPhotoUpload"
+                  onChange={(e) => {
+
+                    const file = e.target.files[0]
+                    if (!file) return
+
+                    const reader = new FileReader()
+
+                    reader.onload = () => {
+                      setEditImageSrc(reader.result)
+                      setShowEditCropModal(true)
+                    }
+
+                    reader.readAsDataURL(file)
+
+                  }}
+                />
+
+                <label htmlFor="editPhotoUpload" className="change-photo-btn">
+                  Change Photo
+                </label>
+
+              </div>
+
+              {/* RIGHT FORM */}
+              <div className="profile-form-grid">
+                <div className="form-group">
+                  <label>Name</label>
+                  <input
+                    value={editingStudent.name || ""}
+                    onChange={(e) =>
+                      setEditingStudent({ ...editingStudent, name: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Activity</label>
+                  <input
+                    value={editingStudent.activity || ""}
+                    onChange={(e) =>
+                      setEditingStudent({ ...editingStudent, activity: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Branch</label>
+                  <input
+                    value={editingStudent.branch || ""}
+                    onChange={(e) =>
+                      setEditingStudent({ ...editingStudent, branch: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Batch</label>
+                  <input
+                    value={editingStudent.batch || ""}
+                    onChange={(e) =>
+                      setEditingStudent({ ...editingStudent, batch: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Joining Date</label>
+                  <input
+                    type="date"
+                    value={editingStudent.join_date || ""}
+                    onChange={(e) =>
+                      setEditingStudent({ ...editingStudent, join_date: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label>WhatsApp Number</label>
+                  <input
+                    value={editingStudent["Whatsapp Number"] || ""}
+                    onChange={(e) =>
+                      setEditingStudent({
+                        ...editingStudent,
+                        ["Whatsapp Number"]: e.target.value
+                      })
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Fees</label>
+                  <input
+                    type="number"
+                    value={editingStudent.fees || ""}
+                    onChange={(e) =>
+                      setEditingStudent({ ...editingStudent, fees: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Date of Birth</label>
+                  <input
+                    type="date"
+                    value={editingStudent.dob || ""}
+                    onChange={(e) =>
+                      setEditingStudent({ ...editingStudent, dob: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Reference</label>
+                  <input
+                    value={editingStudent.reference || ""}
+                    onChange={(e) =>
+                      setEditingStudent({ ...editingStudent, reference: e.target.value })
+                    }
+                  />
+                </div>
+
+
+
+
+
+
+              </div>
+
+            </div>
+
+            <div className="profile-actions">
+
+              <button
+                className="save-profile-btn"
+                onClick={async () => {
+
+                  const { error } = await supabase
+                    .from("students")
+                    .update(editingStudent)
+                    .eq("id", editingStudent.id)
+
+                  if (!error) {
+                    fetchBatchStudents(selectedBatch.name)
+                    setEditingStudent(null)
+                  }
+
+                }}
+              >
+                Save Changes
+              </button>
+
+              <button
+                className="cancel-profile-btn"
+                onClick={() => setEditingStudent(null)}
+              >
+                Cancel
+              </button>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+      {showEditCropModal && (
+
+        <div className="crop-modal">
+
+          <div className="crop-container">
+
+            <Cropper
+              image={editImageSrc}
+              crop={editCrop}
+              zoom={editZoom}
+              aspect={1}
+              onCropChange={setEditCrop}
+              onZoomChange={setEditZoom}
+              onCropComplete={(area, pixels) =>
+                setEditCroppedAreaPixels(pixels)
+              }
+            />
+
+          </div>
+
+          <button
+            onClick={async () => {
+
+              setPhotoUploading(true)
+
+              const croppedBlob = await getCroppedImg(
+                editImageSrc,
+                editCroppedAreaPixels
+              )
+
+              const formDataUpload = new FormData()
+              formDataUpload.append("file", croppedBlob)
+              formDataUpload.append("upload_preset", "dtjyggwjd")
+
+              const res = await fetch(
+                "https://api.cloudinary.com/v1_1/dtjyggwjd/image/upload",
+                {
+                  method: "POST",
+                  body: formDataUpload
+                }
+              )
+
+              const data = await res.json()
+
+              if (data.secure_url) {
+
+                setEditingStudent({
+                  ...editingStudent,
+                  profile_photo: data.secure_url
+                })
+
+              }
+
+              setPhotoUploading(false)
+              setShowEditCropModal(false)
+
+            }}
+          >
+            {photoUploading ? "Uploading..." : "Crop & Upload"}
+          </button>
+
+        </div>
+
       )}
     </div >
   )

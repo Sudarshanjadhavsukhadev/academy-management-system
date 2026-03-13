@@ -12,6 +12,9 @@ function AddBatch() {
   const [batchBranch, setBatchBranch] = useState("")
   const [message, setMessage] = useState("")
   const [trainers, setTrainers] = useState([])
+  const [batchesList, setBatchesList] = useState([])
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [selectedBatchId, setSelectedBatchId] = useState(null)
 
   const fetchTrainers = async () => {
     const { data, error } = await supabase
@@ -31,8 +34,22 @@ function AddBatch() {
   useEffect(() => {
     fetchTrainers()
     fetchBranches()
+    fetchBatchesList()   // ⭐ ADD THIS
   }, [])
 
+  const deleteBatch = async () => {
+
+    const { error } = await supabase
+      .from("batches")
+      .delete()
+      .eq("id", selectedBatchId)
+
+    if (!error) {
+      fetchBatchesList()
+      setShowDeleteModal(false)
+    }
+
+  }
   const toggleDay = (day) => {
 
     if (batchDays.includes(day)) {
@@ -73,10 +90,23 @@ function AddBatch() {
       setBatchTime("")
       setBatchDays([])
       setBatchBranch("")
+      fetchBatchesList()
 
     }
 
   }
+  const fetchBatchesList = async () => {
+
+    const { data, error } = await supabase
+      .from("batches")
+      .select("*")
+
+    console.log("BATCH DATA:", data)
+
+    if (!error) setBatchesList(data)
+
+  }
+  console.log(batchesList)
 
   return (
     <div className="add-batch-page">
@@ -85,77 +115,147 @@ function AddBatch() {
 
       {message && <div className="success-msg">{message}</div>}
 
-      <div className="batch-form">
+      <div className="layout-batch">
 
-        <label>Batch Name</label>
-        <input
-          type="text"
-          value={batchName}
-          onChange={(e) => setBatchName(e.target.value)}
-          placeholder="Morning Karate"
-        />
-        <label>Select Branch</label>
+        <div className="batch-form">
 
-        <select
-          value={batchBranch}
-          onChange={(e) => setBatchBranch(e.target.value)}
-        >
-          <option value="">Select Branch</option>
+          <label>Batch Name</label>
+          <input
+            type="text"
+            value={batchName}
+            onChange={(e) => setBatchName(e.target.value)}
+            placeholder="Morning Karate"
+          />
+          <label>Select Branch</label>
 
-          {branches.map((branch) => (
-            <option key={branch.id} value={branch.name}>
-              {branch.name}
-            </option>
-          ))}
-        </select>
+          <select
+            value={batchBranch}
+            onChange={(e) => {
+              const branch = e.target.value
+              setBatchBranch(branch)
 
-        <label>Assign Trainer</label>
-        <select
-          value={batchTrainer}
-          onChange={(e) => setBatchTrainer(e.target.value)}
-        >
-          <option value="">Select Trainer</option>
 
-          {trainers.map((trainer) => (
-            <option key={trainer.id} value={trainer.name}>
-              {trainer.name}
-            </option>
-          ))}
+            }}
+          >
+            <option value="">Select Branch</option>
 
-        </select>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.name}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
 
-        <label>Batch Time</label>
-        <input
-          type="time"
-          value={batchTime}
-          onChange={(e) => setBatchTime(e.target.value)}
-        />
+          <label>Assign Trainer</label>
+          <select
+            value={batchTrainer}
+            onChange={(e) => setBatchTrainer(e.target.value)}
+          >
+            <option value="">Select Trainer</option>
 
-        <label>Days</label>
+            {trainers.map((trainer) => (
+              <option key={trainer.id} value={trainer.name}>
+                {trainer.name}
+              </option>
+            ))}
 
-        <div className="days-select">
+          </select>
 
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => (
-            <button
-              key={day}
-              className={batchDays.includes(day) ? "day active-day" : "day"}
-              onClick={() => toggleDay(day)}
-              type="button"
-            >
-              {day}
-            </button>
-          ))}
+          <label>Batch Time</label>
+          <input
+            type="time"
+            value={batchTime}
+            onChange={(e) => setBatchTime(e.target.value)}
+          />
+
+          <label>Days</label>
+
+          <div className="days-select">
+
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => (
+              <button
+                key={day}
+                className={batchDays.includes(day) ? "day active-day" : "day"}
+                onClick={() => toggleDay(day)}
+                type="button"
+              >
+                {day}
+              </button>
+            ))}
+
+          </div>
+
+          <button className="save-batch-btn" onClick={addBatch}>
+            Create Batch
+          </button>
 
         </div>
 
-        <button className="save-batch-btn" onClick={addBatch}>
-          Create Batch
-        </button>
 
+
+        <div className="batch-list-panel">
+
+          <h2>Previous Batches</h2>
+
+          {batchesList.length === 0 ? (
+            <p>No Batches Created</p>
+          ) : (
+            batchesList.map((batch) => (
+
+              <div key={batch.id} className="batch-card">
+
+                <div>
+                  <strong>{batch.name}</strong>
+                  <p>{batch.branch}</p>
+                </div>
+
+                <button
+                  className="delete-btn"
+                  onClick={() => {
+                    setSelectedBatchId(batch.id)
+                    setShowDeleteModal(true)
+                  }}
+                >
+                  Delete
+                </button>
+
+              </div>
+
+            )))}
+
+        </div>
+        {showDeleteModal && (
+          <div className="modal-overlay">
+            <div className="modal-box">
+
+              <h3>Delete Batch</h3>
+              <p>Are you sure you want to delete this batch?</p>
+
+              <div className="modal-actions">
+                <button
+                  className="cancel-btn"
+                  onClick={() => setShowDeleteModal(false)}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  className="confirm-delete-btn"
+                  onClick={deleteBatch}
+                >
+                  Delete
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
       </div>
-
     </div>
+
+
   )
+
 }
 
 export default AddBatch

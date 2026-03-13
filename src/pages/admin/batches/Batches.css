@@ -142,9 +142,12 @@ select:focus {
   transition: all 0.2s ease;
 }
 
-.batches-table tbody tr:hover:not(.present-row):not(.absent-row) {
+.batches-table tbody tr:hover:not(.present-row):not(.absent-row) td {
   background: #f1f5ff;
-  transform: scale(1.01);
+}
+.batches-table tbody tr:hover td {
+  background: #f8faff;
+  transition: 0.2s;
 }
 
 /* ===== STATUS BADGES ===== */
@@ -629,9 +632,9 @@ background:#eef2ff;
 font-weight:700;
 }
 
-.students-table td{
-padding:12px;
-border-bottom:1px solid #e5e7eb;
+.students-table tr.advance-row td{
+  background:#ddd6fe !important;
+  border-bottom:none !important;
 }
 
 .date-input{
@@ -992,4 +995,230 @@ opacity:0.9;
 .payment-calendar .react-calendar__navigation button:hover{
   background:#6366f1 !important;
   color:white !important;
+}
+.message-popup{
+position: fixed;
+top:0;
+left:0;
+right:0;
+bottom:0;
+background: rgba(0,0,0,0.4);
+display:flex;
+justify-content:center;
+align-items:center;
+z-index:9999;
+}
+
+.message-box{
+background:white;
+padding:30px 40px;
+border-radius:14px;
+text-align:center;
+box-shadow:0 10px 30px rgba(0,0,0,0.2);
+animation: popupScale 0.25s ease;
+}
+
+.message-box p{
+font-size:18px;
+font-weight:600;
+margin-bottom:20px;
+}
+
+.message-box button{
+background:#6366f1;
+color:white;
+border:none;
+padding:10px 25px;
+border-radius:8px;
+cursor:pointer;
+}
+
+@keyframes popupScale{
+from{
+transform:scale(0.7);
+opacity:0;
+}
+to{
+transform:scale(1);
+opacity:1;
+}
+}
+
+.class-day {
+  background: #e0f2fe !important;
+  border-radius: 10px;
+}
+
+.present-day {
+  background: #22c55e !important;
+  color: white !important;
+  border-radius: 10px;
+}
+
+.absent-day {
+  background: #ef4444 !important;
+  color: white !important;
+  border-radius: 10px;
+}
+
+.class-text {
+  font-size: 9px;
+  margin-top: 2px;
+  color: #6366f1;
+  font-weight: 700;
+}
+.advance-row {
+  background: #ddd6fe !important;
+}
+.profile-overlay{
+position:fixed;
+top:0;
+left:0;
+right:0;
+bottom:0;
+background:rgba(0,0,0,0.5);
+display:flex;
+justify-content:center;
+align-items:center;
+z-index:9999;
+}
+
+.profile-edit-card{
+background:white;
+width:950px;
+max-width:95%;
+border-radius:20px;
+padding:28px 30px;
+box-shadow:0 30px 60px rgba(0,0,0,0.2);
+animation:fadeIn 0.3s ease;
+}
+
+.profile-title{
+font-size:28px;
+font-weight:800;
+margin-bottom:25px;
+}
+
+.profile-edit-body{
+display:flex;
+gap:40px;
+}
+
+.profile-photo-section{
+width:170px;
+display:flex;
+flex-direction:column;
+align-items:center;
+}
+
+.profile-photo-big{
+width:150px;
+height:150px;
+border-radius:50%;
+object-fit:cover;
+margin-bottom:15px;
+border:5px solid #eef2ff;
+}
+
+.photo-input{
+padding:8px;
+border-radius:8px;
+border:1px solid #ddd;
+width:100%;
+font-size:12px;
+}
+
+.profile-form-grid{
+flex:1;
+display:grid;
+grid-template-columns:repeat(2,1fr);
+column-gap:20px;
+row-gap:14px;
+align-items:start;
+}
+
+.form-group{
+display:flex;
+flex-direction:column;
+gap:4px;
+width:100%;
+}
+
+.profile-form-grid input,
+.profile-form-grid select{
+padding:12px;
+border-radius:10px;
+border:1px solid #ddd;
+font-size:14px;
+}
+
+.profile-actions{
+margin-top:25px;
+display:flex;
+gap:15px;
+}
+
+.save-profile-btn{
+background:linear-gradient(135deg,#6366f1,#4f46e5);
+color:white;
+border:none;
+padding:12px 25px;
+border-radius:10px;
+cursor:pointer;
+font-weight:700;
+}
+
+.cancel-profile-btn{
+background:#e5e7eb;
+border:none;
+padding:12px 25px;
+border-radius:10px;
+cursor:pointer;
+font-weight:600;
+}
+.form-group{
+display:flex;
+flex-direction:column;
+gap:6px;
+}
+
+.form-group label{
+font-size:12px;
+font-weight:700;
+color:#64748b;
+letter-spacing:0.4px;
+}
+
+.form-group input,
+.form-group select{
+padding:9px 12px;
+border-radius:12px;
+border:1px solid #e5e7eb;
+font-size:14px;
+background:#f8fafc;
+transition:0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus{
+outline:none;
+border-color:#6366f1;
+background:white;
+box-shadow:0 0 0 3px rgba(99,102,241,0.15);
+}
+.change-photo-btn{
+margin-top:10px;
+background:#6366f1;
+color:white;
+padding:8px 14px;
+border-radius:8px;
+cursor:pointer;
+font-size:13px;
+font-weight:600;
+transition:0.2s;
+display:inline-block;
+}
+
+.change-photo-btn:hover{
+background:#4f46e5;
 }

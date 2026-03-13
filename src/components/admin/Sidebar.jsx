@@ -16,7 +16,7 @@ function Sidebar() {
           Batches
         </NavLink>
 
-       
+
 
         <NavLink to="/admin/trainers">
           Trainers
@@ -30,11 +30,16 @@ function Sidebar() {
         <NavLink to="/admin/branches">
           Add Branches
         </NavLink>
-        <NavLink to="/admin/attendance-report">
-          Student Report
+
+        <NavLink to="/admin/add-activity">
+          Add Activity
         </NavLink>
 
       </nav>
+      {/* ⭐ COMPANY BRANDING */}
+      <div className="sidebar-company">
+        Created by <span>WebNova Technology</span>
+      </div>
     </aside>
   )
 }

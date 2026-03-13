@@ -1,40 +1,135 @@
 .add-branch-page{
   padding:40px;
+  min-height:100vh;
+  background: linear-gradient(135deg,#eef2ff,#f8fafc);
 }
 
+/* Title */
+.add-branch-page h2{
+  font-size:30px;
+  font-weight:800;
+  color:#0f172a;
+  letter-spacing:-0.5px;
+}
+
+/* Card Form */
 .branch-form{
-  max-width:500px;
+  max-width:520px;
   margin-top:30px;
+  background:white;
+  padding:28px;
+  border-radius:18px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.08);
 }
 
+/* Label */
 .branch-form label{
   font-weight:600;
+  color:#334155;
+  font-size:14px;
 }
 
+/* Input */
 .branch-form input{
   width:100%;
-  padding:12px;
+  padding:14px 16px;
   margin-top:8px;
-  margin-bottom:20px;
-  border-radius:8px;
-  border:1px solid #ddd;
+  margin-bottom:22px;
+  border-radius:12px;
+  border:1px solid #e5e7eb;
+  font-size:14px;
+  outline:none;
+  transition:.3s;
 }
 
+.branch-form input:focus{
+  border-color:#6366f1;
+  box-shadow:0 0 0 3px rgba(99,102,241,0.15);
+}
+
+/* Button */
 .save-branch-btn{
   width:100%;
-  padding:14px;
+  padding:15px;
   border:none;
-  border-radius:10px;
+  border-radius:12px;
   background:linear-gradient(135deg,#6366f1,#4f46e5);
   color:white;
   font-weight:600;
+  font-size:15px;
   cursor:pointer;
+  transition:.3s;
 }
 
+.save-branch-btn:hover{
+  transform:translateY(-2px);
+  box-shadow:0 10px 25px rgba(99,102,241,0.35);
+}
+
+.save-branch-btn:active{
+  transform:scale(.97);
+}
+
+/* Success Message */
 .success-msg{
-  background:#d1fae5;
+  background:#ecfdf5;
   color:#065f46;
-  padding:12px;
-  border-radius:8px;
-  margin-top:20px;
+  padding:14px;
+  border-radius:12px;
+  margin-top:22px;
+  font-weight:500;
+  box-shadow:0 5px 15px rgba(0,0,0,0.05);
+}
+.branch-list{
+  margin-top:40px;
+}
+
+/* ⭐ THIS IS IMPORTANT */
+
+.branch-list-container {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;   /* ⭐ VERY IMPORTANT */
+}
+
+.branch-list {
+  margin-top: 40px;
+  max-width: 520px;   /* ⭐ SAME AS FORM WIDTH */
+}
+.branch-card {
+  background: white;
+  padding: 14px 18px;
+  border-radius: 14px;
+  margin-bottom: 14px;
+  width: 420px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+  font-weight: 600;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.delete-btn {
+  background: linear-gradient(135deg,#ff6b6b,#ef4444);
+  color: white;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .3s ease;
+}
+
+.delete-btn:hover {
+  transform: scale(1.12);
+  box-shadow: 0 10px 20px rgba(239,68,68,0.4);
+}
+.branch-card:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+  background: linear-gradient(135deg,#ffffff,#f8fafc);
+  transition: all 0.35s ease;
+cursor: pointer;
 }

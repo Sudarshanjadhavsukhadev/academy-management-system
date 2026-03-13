@@ -16,6 +16,7 @@ function Students() {
   // 👇 ADD THESE LINES
   const [showAddModal, setShowAddModal] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [activities, setActivities] = useState([])
 
   const [formData, setFormData] = useState({
     name: "",
@@ -50,8 +51,8 @@ function Students() {
 
   useEffect(() => {
     fetchBranches()
+    fetchActivities()   // ⭐ ADD THIS
   }, [])
-
 
   // 🔹 Fetch branches
   const fetchBranches = async () => {
@@ -86,6 +87,16 @@ function Students() {
       console.error(error)
     } else {
       setBatches(data)
+    }
+  }
+
+  const fetchActivities = async () => {
+    const { data, error } = await supabase
+      .from("courses")
+      .select("*")
+
+    if (!error) {
+      setActivities(data)
     }
   }
 
@@ -347,9 +358,13 @@ function Students() {
           }
         >
           <option value="">Select Activity</option>
-          <option>Karate</option>
-          <option>Kickboxing</option>
-          <option>Dance</option>
+
+          {activities.map((activity) => (
+            <option key={activity.id} value={activity.name}>
+              {activity.name}
+            </option>
+          ))}
+
         </select>
 
         <select

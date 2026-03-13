@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../../services/supabase"
+import Cropper from "react-easy-crop"
+
+
 import "./Settings.css"
 
 function Settings() {
@@ -15,6 +18,12 @@ function Settings() {
   const [adminPhoto, setAdminPhoto] = useState("")
 
   const [verifiedPassword, setVerifiedPassword] = useState(false)
+
+
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
+  const [showCropModal, setShowCropModal] = useState(false)
 
   const [newEmail, setNewEmail] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -187,6 +196,41 @@ function Settings() {
     }
 
   }
+  const handleCropSave = async () => {
+
+    const image = new Image()
+    image.src = previewImage
+
+    await new Promise((resolve) => (image.onload = resolve))
+
+    const canvas = document.createElement("canvas")
+    const ctx = canvas.getContext("2d")
+
+    canvas.width = croppedAreaPixels.width
+    canvas.height = croppedAreaPixels.height
+
+    ctx.drawImage(
+      image,
+      croppedAreaPixels.x,
+      croppedAreaPixels.y,
+      croppedAreaPixels.width,
+      croppedAreaPixels.height,
+      0,
+      0,
+      croppedAreaPixels.width,
+      croppedAreaPixels.height
+    )
+
+    canvas.toBlob((blob) => {
+      const croppedFile = new File([blob], "cropped.jpg", {
+        type: "image/jpeg",
+      })
+
+      setProfileImage(croppedFile)
+      setShowCropModal(false)
+      setShowProfilePopup(true)
+    })
+  }
   return (
     <div className="settings-page">
       <div className="resume-settings">
@@ -194,7 +238,10 @@ function Settings() {
         {/* LEFT SIDE PROFILE */}
         <div className="resume-left">
 
-          <img src={adminPhoto} className="resume-photo" />
+          <img
+            src={adminPhoto || "https://i.pravatar.cc/150"}
+            className="resume-photo"
+          />
 
           <h2>Admin</h2>
           <p>{admin.email}</p>
@@ -347,6 +394,86 @@ function Settings() {
             <button
               className="cancel-btn"
               onClick={() => setShowPasswordPopup(false)}
+            >
+              Cancel
+            </button>
+
+          </div>
+        </div>
+      )}
+      {showProfilePopup && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+
+            <h3>Change Profile Photo</h3>
+
+            <input
+              type="file"
+              onChange={(e) => {
+                const file = e.target.files[0]
+                if (file) {
+                  setPreviewImage(URL.createObjectURL(file))
+                  setShowCropModal(true)
+                }
+              }}
+            />
+
+            <button
+              className="save-btn"
+              onClick={uploadAdminPhoto}
+            >
+              Upload Photo
+            </button>
+
+            <button
+              className="cancel-btn"
+              onClick={() => setShowProfilePopup(false)}
+            >
+              Cancel
+            </button>
+
+          </div>
+        </div>
+      )}
+      {showCropModal && (
+        <div className="modal-overlay">
+          <div className="modal-box" style={{ width: 400, height: 450 }}>
+
+            <h3>Crop Image</h3>
+
+            <div style={{ position: "relative", width: "100%", height: 300 }}>
+              <Cropper
+                image={previewImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={(croppedArea, croppedPixels) =>
+                  setCroppedAreaPixels(croppedPixels)
+                }
+              />
+            </div>
+
+            <input
+              type="range"
+              min={1}
+              max={3}
+              step={0.1}
+              value={zoom}
+              onChange={(e) => setZoom(e.target.value)}
+            />
+
+            <button
+              className="save-btn"
+              onClick={handleCropSave}
+            >
+              Save Crop
+            </button>
+
+            <button
+              className="cancel-btn"
+              onClick={() => setShowCropModal(false)}
             >
               Cancel
             </button>

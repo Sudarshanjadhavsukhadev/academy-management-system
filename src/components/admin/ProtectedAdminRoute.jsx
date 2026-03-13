@@ -10,7 +10,6 @@ function ProtectedAdminRoute({ children }) {
     let ignore = false
 
     const checkAdmin = async () => {
-      // ✅ wait for session from cache
       const {
         data: { session },
       } = await supabase.auth.getSession()
@@ -40,8 +39,10 @@ function ProtectedAdminRoute({ children }) {
     }
   }, [])
 
-  // ⛔ CRITICAL: do NOTHING until auth is ready
-  if (!ready) return null
+  // ⭐ Better UX
+  if (!ready) {
+    return <div style={{ padding: 40 }}>Checking Admin Access...</div>
+  }
 
   if (!isAdmin) {
     return <Navigate to="/admin/login" replace />

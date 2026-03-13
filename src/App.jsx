@@ -30,6 +30,7 @@ import Reports from "./pages/admin/reports/Reports"
 import Settings from "./pages/admin/settings/Settings"
 import AddBatch from "./pages/admin/AddBatch"
 import AddBranch from "./pages/admin/AddBranch"
+import AddActivity from "./pages/admin/AddActivity"
 /* TRAINER */
 import TrainerLogin from "./pages/trainer/auth/TrainerLogin"
 import TrainerRegister from "./pages/trainer/auth/TrainerRegister"
@@ -85,6 +86,7 @@ function App() {
         <Route path="attendance-report" element={<AttendanceReport />} />
         <Route path="add-batch" element={<AddBatch />} />
         <Route path="branches" element={<AddBranch />} />
+        <Route path="add-activity" element={<AddActivity />} />
       </Route>
 
       {/* USER PROTECTED */}
