@@ -720,3 +720,32 @@
     opacity: 1;
   }
 }
+.notification-item{
+  position:relative;
+  padding:12px 40px 12px 14px;
+  background:#f1f5f9;
+  border-radius:10px;
+  margin-bottom:10px;
+  transition:.25s;
+}
+
+.notification-item:hover{
+  background:#e2e8f0;
+}
+
+.notif-close{
+  position:absolute;
+  right:10px;
+  top:50%;
+  transform:translateY(-50%);
+  border:none;
+  background:transparent;
+  font-size:14px;
+  cursor:pointer;
+  opacity:.6;
+}
+
+.notif-close:hover{
+  opacity:1;
+  transform:translateY(-50%) scale(1.2);
+}

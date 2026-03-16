@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { supabase } from "../../../services/supabase"
 import "./AdminLogin.css"
 
 function AdminLogin() {
+
   const navigate = useNavigate()
 
   const [email, setEmail] = useState("")
@@ -12,61 +13,73 @@ function AdminLogin() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
-  
+  const handleLogin = async (e) => {
 
-const handleLogin = async (e) => {
-  e.preventDefault()
+    e.preventDefault()
 
-  setError("")
-  setLoading(true)
+    setError("")
+    setLoading(true)
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  })
+    try {
 
-  setLoading(false)
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
 
-  if (error) {
-    setError(error.message)
-    return
+      if (error) throw error
+
+      const user = data.user
+
+      // ⭐ check admin role
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError) throw profileError
+
+      if (profile.role !== "admin") {
+
+        await supabase.auth.signOut()
+
+        setError("Access denied. Not an admin.")
+        setLoading(false)
+        return
+      }
+
+      // ⭐ success
+      localStorage.setItem("isAdminLoggedIn", "true")
+
+      navigate("/admin", { replace: true })
+
+    } catch (err) {
+
+      setError(err.message || "Login failed")
+
+    }
+
+    setLoading(false)
   }
-
-  // ✅ check role
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", data.user.id)
-    .single()
-
-  if (profileError || profile.role !== "admin") {
-
-    setError("You are not admin")
-
-    await supabase.auth.signOut()
-
-    return
-  }
-
-  localStorage.setItem("isAdminLoggedIn", true)
-
-  navigate("/admin", { replace: true })
-}
 
   return (
     <div className="admin-login-page">
+
       <div className="login-card">
+
         <h2>Admin Login</h2>
         <p>Secure access to MJK Admin Panel</p>
 
         {error && <div className="error">{error}</div>}
 
         <form onSubmit={handleLogin}>
+
           <input
             type="email"
             placeholder="Admin Email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e)=>setEmail(e.target.value)}
             required
           />
 
@@ -75,10 +88,11 @@ const handleLogin = async (e) => {
               type={showPassword ? "text" : "password"}
               placeholder="Password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e)=>setPassword(e.target.value)}
               required
             />
-            <span onClick={() => setShowPassword(!showPassword)}>
+
+            <span onClick={()=>setShowPassword(!showPassword)}>
               {showPassword ? "Hide" : "Show"}
             </span>
           </div>
@@ -86,12 +100,17 @@ const handleLogin = async (e) => {
           <button type="submit" disabled={loading}>
             {loading ? "Logging in..." : "Login"}
           </button>
+
         </form>
 
         <div className="links">
-          <Link to="/admin/forgot-password">Forgot password?</Link>
+          <Link to="/admin/forgot-password">
+            Forgot password?
+          </Link>
         </div>
+
       </div>
+
     </div>
   )
 }

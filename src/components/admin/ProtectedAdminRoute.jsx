@@ -3,56 +3,76 @@ import { useEffect, useState } from "react"
 import { supabase } from "../../services/supabase"
 
 function ProtectedAdminRoute({ children }) {
-  const [ready, setReady] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
+
   const location = useLocation()
 
-
-  useEffect(() => {
-    let ignore = false
-
-    const checkAdmin = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (!session?.user) {
-        if (!ignore) setReady(true)
-        return
-      }
-
-      const { data } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", session.user.id)
-        .single()
-
-      if (!ignore && data?.role === "admin") {
-        setIsAdmin(true)
-      }
-
-      if (!ignore) setReady(true)
-    }
-
-    checkAdmin()
-
-    return () => {
-      ignore = true
-    }
-  }, [])
-
-  // ✅ allow reset / forgot / login pages
+  // ⭐⭐⭐ VERY IMPORTANT — RETURN BEFORE ANY HOOK LOGIC
   if (
-    location.pathname === "/admin/reset-password" ||
+    location.pathname === "/admin/login" ||
     location.pathname === "/admin/forgot-password" ||
-    location.pathname === "/admin/login"
+    location.pathname.startsWith("/admin/reset-password")
   ) {
     return children
   }
 
-  // ⭐ Better UX
-  if (!ready) {
-    return <div style={{ padding: 40 }}>Checking Admin Access...</div>
+  const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+
+    let mounted = true
+
+    const checkAdmin = async () => {
+
+      const { data } = await supabase.auth.getSession()
+
+      const session = data.session
+
+      if (!session) {
+        if (mounted) setLoading(false)
+        return
+      }
+
+      try {
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single()
+
+        if (mounted && profile?.role === "admin") {
+          setIsAdmin(true)
+        }
+
+      } catch (err) {
+        console.log(err.message)
+      }
+
+      if (mounted) setLoading(false)
+
+    }
+
+    checkAdmin()
+
+    const { data: listener } =
+      supabase.auth.onAuthStateChange((event) => {
+
+        if (event === "SIGNED_OUT") {
+          setIsAdmin(false)
+        }
+
+      })
+
+    return () => {
+      mounted = false
+      listener.subscription.unsubscribe()
+    }
+
+  }, [])
+
+  if (loading) {
+    return <div style={{ padding: 50 }}>Checking admin session...</div>
   }
 
   if (!isAdmin) {

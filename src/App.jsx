@@ -39,11 +39,11 @@ function App() {
     <Routes>
 
       {/* DEFAULT */}
-      <Route path="/" element={<Navigate to="/login" />} />
+      <Route path="/" element={<Navigate to="/admin/login" />} />
 
-      
 
-     
+
+
       {/* ADMIN AUTH */}
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin/forgot-password" element={<AdminForgotPassword />} />
@@ -51,7 +51,7 @@ function App() {
 
       {/* ADMIN PROTECTED */}
       <Route
-        path="/admin"
+        path="/admin/*"
         element={
           <ProtectedAdminRoute>
             <AdminLayout />
@@ -73,7 +73,7 @@ function App() {
       </Route>
 
       {/* USER PROTECTED */}
-     
+
 
       {/* TRAINER AUTH */}
       <Route path="/trainer/login" element={<TrainerLogin />} />

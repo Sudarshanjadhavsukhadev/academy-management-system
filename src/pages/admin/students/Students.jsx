@@ -20,7 +20,7 @@ function Students() {
 
   const [formData, setFormData] = useState({
     name: "",
-    activity: "",
+    activity: [],
     branch: "",
     batch: "",
     join_date: "",
@@ -309,7 +309,7 @@ function Students() {
       fetchStudents(formData.branch)
       setFormData({
         name: "",
-        activity: "",
+        activity: [],
         branch: "",
         batch: "",
         join_date: "",
@@ -334,6 +334,16 @@ function Students() {
       s.activity?.toLowerCase().includes(search.toLowerCase()) ||
       s.branch?.toLowerCase().includes(search.toLowerCase())
   )
+  const handleActivitySelect = (value) => {
+    if (!value) return
+
+    if (!formData.activity.includes(value)) {
+      setFormData({
+        ...formData,
+        activity: [...formData.activity, value],
+      })
+    }
+  }
 
   return (
     <div className="students-page">
@@ -352,10 +362,10 @@ function Students() {
         />
 
         <select
-          value={formData.activity}
-          onChange={(e) =>
-            setFormData({ ...formData, activity: e.target.value })
-          }
+          onChange={(e) => {
+            handleActivitySelect(e.target.value)
+            e.target.value = ""
+          }}
         >
           <option value="">Select Activity</option>
 
@@ -364,8 +374,24 @@ function Students() {
               {activity.name}
             </option>
           ))}
-
         </select>
+        <div className="selected-activities">
+          {formData.activity.map((act) => (
+            <div key={act} className="activity-chip">
+              {act}
+              <span
+                onClick={() =>
+                  setFormData({
+                    ...formData,
+                    activity: formData.activity.filter((a) => a !== act),
+                  })
+                }
+              >
+                ❌
+              </span>
+            </div>
+          ))}
+        </div>
 
         <select
           value={formData.branch}

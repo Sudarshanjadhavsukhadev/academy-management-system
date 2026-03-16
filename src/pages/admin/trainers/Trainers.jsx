@@ -252,7 +252,7 @@ function Trainers() {
           <table className="trainers-table">
             <thead>
               <tr>
-                <th></th>
+               
                 <th>Name</th>
                 <th>Email</th>
                 <th>Batches</th>
@@ -265,13 +265,7 @@ function Trainers() {
             <tbody>
               {filteredTrainers.map((trainer) => (
                 <tr key={trainer.id}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(trainer.id)}
-                      onChange={() => toggleSelect(trainer.id)}
-                    />
-                  </td>
+                  
                   <td>{trainer.name}</td>
                   <td>{trainer.email}</td>
 

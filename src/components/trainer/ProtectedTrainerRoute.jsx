@@ -1,8 +1,16 @@
-import { Navigate } from "react-router-dom"
+import { Navigate, useLocation } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { supabase } from "../../services/supabase"
 
 function ProtectedTrainerRoute({ children }) {
+
+  const location = useLocation()
+
+  // ⭐ VERY IMPORTANT — allow admin reset page
+  if (location.pathname.startsWith("/admin/reset-password")) {
+    return children
+  }
+
   const [loading, setLoading] = useState(true)
   const [allowed, setAllowed] = useState(false)
 

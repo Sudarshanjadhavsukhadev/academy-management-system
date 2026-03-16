@@ -142,8 +142,7 @@ function Batches({ searchStudent }) {
       // if today's date passed the due date and payment exists
 
     }
-
-    setBatchStudents(data)
+   setBatchStudents(data)
   }
   const fetchLastAttendance = async (batchName) => {
 
@@ -487,6 +486,16 @@ function Batches({ searchStudent }) {
 
 
     const today = new Date().toISOString().split("T")[0]
+    const { data: existing } = await supabase
+      .from("attendance")
+      .select("id")
+      .eq("batch", selectedBatch.name)
+      .eq("date", today)
+
+    if (existing.length > 0) {
+      setMessagePopup("⚠️ Attendance already saved today")
+      return
+    }
 
     const records = batchStudents.map(student => ({
       student_id: student.id,
@@ -520,6 +529,9 @@ function Batches({ searchStudent }) {
 
 
   const filteredBatches = batches
+  const filteredStudents = batchStudents.filter((student) =>
+    student.name?.toLowerCase().includes(search.toLowerCase())
+  )
 
 
 
@@ -586,17 +598,29 @@ function Batches({ searchStudent }) {
       {/* BRANCH PILLS */}
       {!showPopup && (
         <div className="batch-section">
+
           <div className="branch-header-row">
             <h2>Select Branch</h2>
 
-            <button
-              className="back-dashboard-btn"
-              onClick={() => navigate("/admin")}
-            >
-              ← Back
-            </button>
-          </div>
+            <div className="branch-actions">
 
+              <button
+                className="back-dashboard-btn"
+                onClick={() => navigate("/admin")}
+              >
+                ← Back
+              </button>
+
+              <input
+                className="student-search-input"
+                type="text"
+                placeholder="Search student..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+
+            </div>
+          </div>
           <div className="batch-list">
 
             {branches.map(branch => (
@@ -763,7 +787,7 @@ function Batches({ searchStudent }) {
                   </thead>
 
                   <tbody>
-                    {batchStudents.map((student) => (
+                    {filteredStudents.map((student) => (
                       <tr
                         key={student.id}
                         className={
@@ -792,6 +816,7 @@ function Batches({ searchStudent }) {
                         <td>
                           <button
                             className="mark-fees-btn"
+                            disabled={student.status === "disabled"}
                             onClick={() => {
                               setPaymentStudent(student)
                               setPaymentDate(new Date())
@@ -827,7 +852,16 @@ function Batches({ searchStudent }) {
 
                           <button
                             className="edit-btn"
-                            onClick={() => setEditingStudent(student)}
+                            onClick={() =>
+                              setEditingStudent({
+                                ...student,
+                                activity: Array.isArray(student.activity)
+                                  ? student.activity
+                                  : student.activity
+                                    ? [student.activity]
+                                    : [],
+                              })
+                            }
                           >
                             Edit
                           </button>
@@ -1032,7 +1066,20 @@ function Batches({ searchStudent }) {
               <div className="student-details-grid">
 
                 <p><strong>Name:</strong> {viewStudent.name}</p>
-                <p><strong>Activity:</strong> {viewStudent.activity}</p>
+                <div>
+                  <strong>Activity:</strong>
+
+                  <div className="selected-activities" style={{ marginTop: "5px" }}>
+                    {(Array.isArray(viewStudent.activity)
+                      ? viewStudent.activity
+                      : [viewStudent.activity]
+                    ).map((act) => (
+                      <div key={act} className="activity-chip">
+                        {act}
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 <p><strong>Branch:</strong> {viewStudent.branch}</p>
                 <p><strong>Batch:</strong> {viewStudent.batch}</p>
@@ -1469,12 +1516,49 @@ function Batches({ searchStudent }) {
                 </div>
                 <div className="form-group">
                   <label>Activity</label>
-                  <input
-                    value={editingStudent.activity || ""}
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, activity: e.target.value })
-                    }
-                  />
+
+                  <select
+                    onChange={(e) => {
+                      const value = e.target.value
+
+                      if (!value) return
+
+                      if (!editingStudent.activity?.includes(value)) {
+                        setEditingStudent({
+                          ...editingStudent,
+                          activity: [...(editingStudent.activity || []), value],
+                        })
+                      }
+
+                      e.target.value = ""
+                    }}
+                  >
+                    <option value="">Select Activity</option>
+
+                    {courses.map((course) => (
+                      <option key={course.id} value={course.name}>
+                        {course.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="selected-activities">
+                    {(editingStudent.activity || []).map((act) => (
+                      <div key={act} className="activity-chip">
+                        {act}
+                        <span
+                          onClick={() =>
+                            setEditingStudent({
+                              ...editingStudent,
+                              activity: editingStudent.activity.filter((a) => a !== act),
+                            })
+                          }
+                        >
+                          ❌
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div className="form-group">
                   <label>Branch</label>
@@ -1563,7 +1647,18 @@ function Batches({ searchStudent }) {
 
                   const { error } = await supabase
                     .from("students")
-                    .update(editingStudent)
+                    .update({
+                      name: editingStudent.name,
+                      activity: editingStudent.activity,
+                      branch: editingStudent.branch,
+                      batch: editingStudent.batch,
+                      join_date: editingStudent.join_date,
+                      fees: editingStudent.fees,
+                      dob: editingStudent.dob,
+                      reference: editingStudent.reference,
+                      profile_photo: editingStudent.profile_photo,
+                      ["Whatsapp Number"]: editingStudent["Whatsapp Number"]
+                    })
                     .eq("id", editingStudent.id)
 
                   if (!error) {

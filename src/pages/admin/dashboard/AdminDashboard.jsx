@@ -54,10 +54,12 @@ function AdminDashboard() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [toast, setToast] = useState(null)
+  const [hoveredNotification, setHoveredNotification] = useState(null)
+  const [removedNotifications, setRemovedNotifications] = useState([])
   const [attendanceBatch, setAttendanceBatch] = useState(null)
   const [searchResults, setSearchResults] = useState([])
   const [selectedSearchStudent, setSelectedSearchStudent] = useState(null)
-  
+
   const [revenueType, setRevenueType] = useState(null)
   const [dbSize, setDbSize] = useState(0)
   const DB_LIMIT = 500 * 1024 * 1024
@@ -338,6 +340,8 @@ function AdminDashboard() {
 
             if (prev.includes(message)) return prev
 
+            if (removedNotifications.includes(message)) return prev
+
             return [message, ...prev]
 
           })
@@ -357,8 +361,7 @@ function AdminDashboard() {
       supabase.removeChannel(channel)
     }
 
-  }, [])
-
+  }, [removedNotifications])
   useEffect(() => {
 
     const checkClassNotifications = () => {
@@ -377,20 +380,34 @@ function AdminDashboard() {
 
         // 10 minutes before class
         if (diff === 10) {
-          setNotifications(prev => [
-            ...prev,
-            `⏰ ${cls.name} will start in 10 minutes`
-          ])
-          setShowNotifications(true)
+
+          const msg = `⏰ ${cls.name} will start in 10 minutes`
+
+          setNotifications(prev => {
+
+            if (removedNotifications.includes(msg)) return prev
+
+            return [...prev, msg]
+
+          })
+
         }
 
         // class start
         if (diff === 0) {
-          setNotifications(prev => [
-            ...prev,
-            `▶ ${cls.name} class has started`
-          ])
+
+          const msg = `▶ ${cls.name} class has started`
+
+          setNotifications(prev => {
+
+            if (removedNotifications.includes(msg)) return prev
+
+            return [...prev, msg]
+
+          })
+
           setShowNotifications(true)
+
         }
 
       })
@@ -401,7 +418,7 @@ function AdminDashboard() {
 
     return () => clearInterval(interval)
 
-  }, [upcomingClasses])
+  }, [upcomingClasses, removedNotifications])
   useEffect(() => {
 
     fetchDatabaseSize()
@@ -433,6 +450,24 @@ function AdminDashboard() {
 
     // ⭐ remove toast memory
     localStorage.removeItem("lastToast")
+
+  }
+
+  const removeSingleNotification = async (index) => {
+
+    const message = notifications[index]
+
+    // mark as removed
+    setRemovedNotifications(prev => [...prev, message])
+
+    await supabase
+      .from("notifications")
+      .delete()
+      .eq("message", message)
+
+    setNotifications(prev =>
+      prev.filter((_, i) => i !== index)
+    )
 
   }
 
@@ -933,20 +968,38 @@ function AdminDashboard() {
                 <p>No new notifications</p>
               ) : (
                 notifications.map((note, index) => (
+
                   <div
                     key={index}
                     className="notification-item"
-                    onClick={() => {
-
-                      if (note.includes("trainer registration")) {
-                        setActiveTab("trainers")
-                        setShowNotifications(false)
-                      }
-
-                    }}
+                    onMouseEnter={() => setHoveredNotification(index)}
+                    onMouseLeave={() => setHoveredNotification(null)}
                   >
-                    {note}
+
+                    <span
+                      onClick={() => {
+
+                        if (note.includes("trainer registration")) {
+                          setActiveTab("trainers")
+                          setShowNotifications(false)
+                        }
+
+                      }}
+                    >
+                      {note}
+                    </span>
+
+                    {hoveredNotification === index && (
+                      <button
+                        className="notif-close"
+                        onClick={() => removeSingleNotification(index)}
+                      >
+                        ✖
+                      </button>
+                    )}
+
                   </div>
+
                 ))
               )}
             </div>
@@ -958,8 +1011,8 @@ function AdminDashboard() {
           {toast}
         </div>
       )}
-     
-    
+
+
     </div>
   )
 }

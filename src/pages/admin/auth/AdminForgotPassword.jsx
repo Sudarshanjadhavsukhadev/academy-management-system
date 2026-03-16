@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { supabase } from "../../../services/supabase"
 
 function AdminForgotPassword() {
@@ -8,46 +8,69 @@ function AdminForgotPassword() {
   const [loading, setLoading] = useState(false)
   const [cooldown, setCooldown] = useState(0)
 
-  const handleReset = async (e) => {
-    e.preventDefault()
+  const timerRef = useRef(null)
 
-    if (cooldown > 0) return
-
-    setLoading(true)
-
-    const { error } =
-      await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo:
-          "https://academy-management-system-a2tg.vercel.app/admin/reset-password"
-      })
-
-    setLoading(false)
-
-    if (error) {
-      setMessage(error.message)
-      return
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
     }
+  }, [])
 
-    setMessage("✅ Reset link sent")
+  const startCooldown = () => {
 
-    // ⭐ start cooldown
     let seconds = 60
+
     setCooldown(seconds)
 
-    const timer = setInterval(() => {
+    timerRef.current = setInterval(() => {
+
       seconds--
 
       setCooldown(seconds)
 
       if (seconds <= 0) {
-        clearInterval(timer)
+        clearInterval(timerRef.current)
       }
-    }, 1000)
 
+    }, 1000)
+  }
+
+  const handleReset = async (e) => {
+
+    e.preventDefault()
+
+    if (!email) return
+
+    if (cooldown > 0) return
+
+    setLoading(true)
+    setMessage("")
+
+    try {
+
+      const { error } =
+        await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo:
+            "https://academy-management-system-a2tg.vercel.app/admin/reset-password"
+        })
+
+      if (error) throw error
+
+      setMessage("✅ Reset link sent to your email")
+      startCooldown()
+
+    } catch (err) {
+
+      setMessage(err.message || "Something went wrong")
+
+    }
+
+    setLoading(false)
   }
 
   return (
     <div className="admin-login-page">
+
       <div className="login-card">
 
         <h2>Reset Password</h2>
@@ -58,7 +81,7 @@ function AdminForgotPassword() {
             type="email"
             value={email}
             placeholder="Enter admin email"
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e)=>setEmail(e.target.value)}
             required
           />
 
@@ -75,6 +98,7 @@ function AdminForgotPassword() {
         {message && <div className="success-msg">{message}</div>}
 
       </div>
+
     </div>
   )
 }
