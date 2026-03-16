@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { supabase } from "../../services/supabase"
 import "./AddActivity.css"
 
 function AddActivity() {
-
+  const navigate = useNavigate()
   const [activityName, setActivityName] = useState("")
   const [activities, setActivities] = useState([])
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -59,7 +60,18 @@ function AddActivity() {
 
   return (
     <div className="add-activity-page">
-      <h2>Add Activity</h2>
+      <div className="activity-header">
+
+        <h2>Add Activity</h2>
+
+        <button
+          className="back-btn"
+          onClick={() => navigate("/admin")}
+        >
+          ← Back
+        </button>
+
+      </div>
 
       <form onSubmit={handleAddActivity} className="add-activity-form">
 

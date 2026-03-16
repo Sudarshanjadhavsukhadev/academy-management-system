@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { supabase } from "../../services/supabase"
 
 import "./AddBranch.css"
 
 function AddBranch() {
-
+  const navigate = useNavigate()
   const [branchName, setBranchName] = useState("")
   const [message, setMessage] = useState("")
   const [branches, setBranches] = useState([])
@@ -71,7 +72,18 @@ function AddBranch() {
   return (
     <div className="add-branch-page">
 
-      <h1>Add New Branch</h1>
+      <div className="branch-header">
+
+        <h1>Add New Branch</h1>
+
+        <button
+          className="back-btn"
+          onClick={() => navigate("/admin")}
+        >
+          ← Back
+        </button>
+
+      </div>
 
       {message && <div className="success-msg">{message}</div>}
 

@@ -47,8 +47,8 @@ function AdminDashboard() {
     students: 0,
     trainers: 0,
     batches: 0,
-    revenue: 0,
-    profit: 0
+    activities: 0,
+    revenue: 0
   })
   const [upcomingClasses, setUpcomingClasses] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
@@ -57,6 +57,8 @@ function AdminDashboard() {
   const [attendanceBatch, setAttendanceBatch] = useState(null)
   const [searchResults, setSearchResults] = useState([])
   const [selectedSearchStudent, setSelectedSearchStudent] = useState(null)
+  
+  const [revenueType, setRevenueType] = useState(null)
   const [dbSize, setDbSize] = useState(0)
   const DB_LIMIT = 500 * 1024 * 1024
   // 📂 Excel Upload Handler
@@ -173,6 +175,9 @@ function AdminDashboard() {
       const { count: batchCount } = await supabase
         .from("batches")
         .select("*", { count: "exact", head: true })
+      const { count: activityCount } = await supabase
+        .from("courses")
+        .select("*", { count: "exact", head: true })
       const { data: students } = await supabase
         .from("students")
         .select("fees")
@@ -191,7 +196,7 @@ function AdminDashboard() {
         0
       )
 
-      const netProfit = totalRevenue - trainerSalary
+
       // Fetch upcoming classes (next 5 classes)
       const { data: batchData } = await supabase
         .from("batches")
@@ -229,8 +234,8 @@ function AdminDashboard() {
         students: studentCount ?? 0,
         trainers: trainerCount ?? 0,
         batches: batchCount ?? 0,
-        revenue: totalRevenue,
-        profit: netProfit
+        activities: activityCount ?? 0,
+        revenue: totalRevenue
       })
     }
 
@@ -329,7 +334,13 @@ function AdminDashboard() {
           const message = payload.new.message
 
           // update notification list
-          setNotifications(prev => [message, ...prev])
+          setNotifications(prev => {
+
+            if (prev.includes(message)) return prev
+
+            return [message, ...prev]
+
+          })
 
           // show toast instantly
           setToast(message)
@@ -407,15 +418,20 @@ function AdminDashboard() {
     const { error } = await supabase
       .from("notifications")
       .delete()
-      .gte("id", 0)   // delete all notifications safely
+      .neq("id", 0)     // ⭐ DELETE ALL SAFELY
 
     if (error) {
-      console.error("Delete error:", error)
+      console.log(error)
       return
     }
 
-    // clear UI
+    // ⭐ clear UI
     setNotifications([])
+
+    // ⭐ close panel
+    setShowNotifications(false)
+
+    // ⭐ remove toast memory
     localStorage.removeItem("lastToast")
 
   }
@@ -470,6 +486,89 @@ function AdminDashboard() {
     } finally {
       setShowSaveModal(false)
     }
+  }
+  const loadAvailableYears = async () => {
+
+    const { data } = await supabase
+      .from("students")
+      .select("created_at")
+
+    if (!data) return
+
+    const years = [
+      ...new Set(
+        data.map(s => new Date(s.created_at).getFullYear())
+      )
+    ]
+
+    years.sort((a, b) => b - a)
+
+    setAvailableYears(years)
+
+  }
+  const fetchLifetimeRevenue = async () => {
+
+    const { data } = await supabase
+      .from("students")
+      .select("fees")
+
+    const total = (data || []).reduce(
+      (sum, s) => sum + (Number(s.fees) || 0),
+      0
+    )
+
+    setRevenueResult({
+      type: "Lifetime",
+      amount: total
+    })
+
+  }
+  const fetchMonthlyRevenue = async () => {
+
+    if (selectedMonth === "") {
+      alert("Please select month")
+      return
+    }
+
+    const monthNumber = Number(selectedMonth)
+
+    const { data } = await supabase
+      .from("students")
+      .select("fees, created_at")
+
+    const total = (data || [])
+      .filter(s => {
+        const m = new Date(s.created_at).getMonth()
+        return m === monthNumber
+      })
+      .reduce((sum, s) => sum + (Number(s.fees) || 0), 0)
+
+    setRevenueResult({
+      type: "Monthly",
+      amount: total
+    })
+
+  }
+  const fetchYearlyRevenue = async () => {
+
+    if (!selectedYear) {
+      alert("Please select year")
+      return
+    }
+
+    const { data } = await supabase
+      .from("students")
+      .select("fees, created_at")
+
+    const total = (data || [])
+      .filter(s => new Date(s.created_at).getFullYear() == selectedYear)
+      .reduce((sum, s) => sum + (Number(s.fees) || 0), 0)
+
+    setRevenueResult({
+      type: "Yearly",
+      amount: total
+    })
+
   }
 
   return (
@@ -558,32 +657,31 @@ function AdminDashboard() {
 
               <div className="stats-cards">
 
-                <div
-                  className="stat-card clickable-card"
-                  onClick={() => setActiveTab("studentsList")}
-                >
+                <div className="stat-card">
                   <span>Total Students</span>
                   <h2>{stats.students}</h2>
                 </div>
-
                 <div className="stat-card">
                   <span>Total Trainers</span>
                   <h2>{stats.trainers}</h2>
                 </div>
+
 
                 <div className="stat-card">
                   <span>Total Batches</span>
                   <h2>{stats.batches}</h2>
                 </div>
                 <div className="stat-card">
+                  <span>Total Activity</span>
+                  <h2>{stats.activities}</h2>
+                </div>
+                <div className="stat-card">
                   <span>Total Revenue</span>
                   <h2>₹{stats.revenue}</h2>
                 </div>
 
-                <div className="stat-card">
-                  <span>Net Profit</span>
-                  <h2>₹{stats.profit}</h2>
-                </div>
+
+
 
               </div>
             </div>
@@ -860,6 +958,8 @@ function AdminDashboard() {
           {toast}
         </div>
       )}
+     
+    
     </div>
   )
 }

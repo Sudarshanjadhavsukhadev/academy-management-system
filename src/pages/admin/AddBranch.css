@@ -133,3 +133,9 @@
   transition: all 0.35s ease;
 cursor: pointer;
 }
+.branch-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:25px;
+}

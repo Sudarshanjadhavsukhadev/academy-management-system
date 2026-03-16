@@ -13,16 +13,16 @@ function AdminForgotPassword() {
     setLoading(true)
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-     redirectTo: "https://academy-management-system.vercel.app/admin/reset-password"
+      redirectTo: "http://localhost:5173/admin/reset-password"
     })
 
-    if (error) {
-      setMessage(error.message)
-    } else {
-      setMessage("✅ Password reset link sent to your email")
-    }
-
     setLoading(false)
+
+    if (error) {
+      setMessage("❌ Failed to send reset email")
+    } else {
+      setMessage("✅ Reset link sent to your email")
+    }
   }
 
   return (
@@ -37,7 +37,7 @@ function AdminForgotPassword() {
 
           <input
             type="email"
-            placeholder="Admin Email"
+            placeholder="Enter admin email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required

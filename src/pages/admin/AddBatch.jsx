@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { supabase } from "../../services/supabase"
 import "./AddBatch.css"
 
 function AddBatch() {
-
+  const navigate = useNavigate()
   const [batchName, setBatchName] = useState("")
   const [batchTrainer, setBatchTrainer] = useState("")
   const [batchTime, setBatchTime] = useState("")
@@ -111,7 +112,18 @@ function AddBatch() {
   return (
     <div className="add-batch-page">
 
-      <h1>Add New Batch</h1>
+      <div className="batch-header">
+
+        <h1>Add New Batch</h1>
+
+        <button
+          className="back-btn"
+          onClick={() => navigate("/admin")}
+        >
+          ← Back
+        </button>
+
+      </div>
 
       {message && <div className="success-msg">{message}</div>}
 

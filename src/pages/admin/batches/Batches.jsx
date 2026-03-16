@@ -15,6 +15,7 @@ import "react-calendar/dist/Calendar.css"
 
 import { supabase } from "../../../services/supabase"
 import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
 
 
 
@@ -32,6 +33,7 @@ ChartJS.register(
 )
 
 function Batches({ searchStudent }) {
+  const navigate = useNavigate()
   const [batches, setBatches] = useState([])
   const [selectedBranch, setSelectedBranch] = useState("")
   const [branches, setBranches] = useState([])
@@ -69,6 +71,8 @@ function Batches({ searchStudent }) {
   const [studentAttendanceDates, setStudentAttendanceDates] = useState([])
   const [lastAttendance, setLastAttendance] = useState({})
   const [messagePopup, setMessagePopup] = useState("")
+  const [confirmDisableStudent, setConfirmDisableStudent] = useState(null)
+  const [confirmActiveStudent, setConfirmActiveStudent] = useState(null)
   const [editImageSrc, setEditImageSrc] = useState(null)
   const [editCrop, setEditCrop] = useState({ x: 0, y: 0 })
   const [editZoom, setEditZoom] = useState(1)
@@ -391,26 +395,16 @@ function Batches({ searchStudent }) {
 
   const toggleStudentStatus = async (student) => {
 
-    const newStatus = student.status === "active" ? "disabled" : "active"
-
-    const updateData = {
-      status: newStatus
+    // ACTIVE → DISABLE CONFIRM
+    if (student.status === "active") {
+      setConfirmDisableStudent(student)
+      return
     }
 
-    // If re-activating student → update join date
-    if (newStatus === "active") {
-      updateData.join_date = new Date().toISOString().split("T")[0]
-    }
-
-    const { error } = await supabase
-      .from("students")
-      .update(updateData)
-      .eq("id", student.id)
-
-    if (error) {
-      console.error(error)
-    } else {
-      fetchBatchStudents(selectedBatch.name)
+    // DISABLED → ACTIVE CONFIRM
+    if (student.status === "disabled") {
+      setConfirmActiveStudent(student)
+      return
     }
 
   }
@@ -527,36 +521,7 @@ function Batches({ searchStudent }) {
 
   const filteredBatches = batches
 
-  const canMarkAttendance = () => {
 
-    if (!selectedBatch) return false
-
-    const today = new Date()
-
-    const todayName = today.toLocaleString("en-US", { weekday: "short" }) // Mon
-
-    const batchDays = selectedBatch.days?.split(", ").map(d => d.trim())
-
-    if (!batchDays.includes(todayName)) return false
-
-    const [h, m] = selectedBatch.timing.split(":")
-
-    const classTime = new Date()
-    classTime.setHours(h)
-    classTime.setMinutes(m)
-    classTime.setSeconds(0)
-
-    if (today < classTime) return false
-
-    // 🔥 check already marked today
-    const todayDate = today.toISOString().split("T")[0]
-
-    const alreadyMarked = Object.values(lastAttendance).includes(todayDate)
-
-    if (alreadyMarked) return false
-
-    return true
-  }
 
   const getTileClass = ({ date }) => {
 
@@ -621,7 +586,16 @@ function Batches({ searchStudent }) {
       {/* BRANCH PILLS */}
       {!showPopup && (
         <div className="batch-section">
-          <h2>Select Branch</h2>
+          <div className="branch-header-row">
+            <h2>Select Branch</h2>
+
+            <button
+              className="back-dashboard-btn"
+              onClick={() => navigate("/admin")}
+            >
+              ← Back
+            </button>
+          </div>
 
           <div className="batch-list">
 
@@ -655,7 +629,10 @@ function Batches({ searchStudent }) {
                 key={batch.id}
                 className={`batch-pill ${selectedBatch?.id === batch.id ? "active-batch" : ""
                   }`}
-                onClick={() => setSelectedBatch(batch)}
+                onClick={() => {
+                  setSelectedBatch(batch)
+                  setActiveTab("students")
+                }}
               >
                 {batch.name}
               </button>
@@ -895,11 +872,7 @@ function Batches({ searchStudent }) {
                       </tr>
                     </thead>
 
-                    {!canMarkAttendance() && (
-                      <p style={{ color: "red", marginBottom: "10px" }}>
-                        Attendance already marked or class not started yet
-                      </p>
-                    )}
+
 
                     <tbody>
                       {batchStudents
@@ -928,7 +901,7 @@ function Batches({ searchStudent }) {
 
                             <td>
                               <button
-                                disabled={!canMarkAttendance()}
+
                                 className="active-btn"
                                 onClick={() => markAttendance(student.id, "present")}
                               >
@@ -956,7 +929,7 @@ function Batches({ searchStudent }) {
 
                   <div style={{ marginTop: "20px" }}>
                     <button
-                      disabled={!canMarkAttendance()}
+
                       className="add-btn"
                       onClick={saveAttendance}
                     >
@@ -1025,6 +998,7 @@ function Batches({ searchStudent }) {
                         className="popup-branch-btn"
                         onClick={() => {
                           setSelectedBatch(batch)
+                          setActiveTab("students")
                           setShowPopup(false)
                         }}
                       >
@@ -1614,6 +1588,64 @@ function Batches({ searchStudent }) {
           </div>
         </div>
       )}
+      {confirmDisableStudent && (
+        <div className="branch-popup-overlay">
+          <div className="branch-popup">
+
+            <h3 style={{ marginBottom: "10px" }}>
+              Disable Student
+            </h3>
+
+            <p style={{ marginBottom: "20px", color: "#555" }}>
+              Are you sure you want to disable
+              <strong> {confirmDisableStudent.name}</strong> ?
+            </p>
+
+            <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+
+              <button
+                style={{
+                  background: "#ef4444",
+                  color: "white",
+                  padding: "10px 18px",
+                  borderRadius: "8px",
+                  border: "none"
+                }}
+                onClick={async () => {
+
+                  const { error } = await supabase
+                    .from("students")
+                    .update({ status: "disabled" })
+                    .eq("id", confirmDisableStudent.id)
+
+                  if (!error) {
+                    fetchBatchStudents(selectedBatch.name)
+                  }
+
+                  setConfirmDisableStudent(null)
+
+                }}
+              >
+                Yes Disable
+              </button>
+
+              <button
+                style={{
+                  background: "#e5e7eb",
+                  padding: "10px 18px",
+                  borderRadius: "8px",
+                  border: "none"
+                }}
+                onClick={() => setConfirmDisableStudent(null)}
+              >
+                Cancel
+              </button>
+
+            </div>
+
+          </div>
+        </div>
+      )}
       {showEditCropModal && (
 
         <div className="crop-modal">
@@ -1677,6 +1709,67 @@ function Batches({ searchStudent }) {
 
         </div>
 
+      )}
+      {confirmActiveStudent && (
+        <div className="branch-popup-overlay">
+          <div className="branch-popup">
+
+            <h3 style={{ marginBottom: "10px" }}>
+              Activate Student
+            </h3>
+
+            <p style={{ marginBottom: "20px", color: "#555" }}>
+              Are you sure you want to activate
+              <strong> {confirmActiveStudent.name}</strong> ?
+            </p>
+
+            <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+
+              <button
+                style={{
+                  background: "#22c55e",
+                  color: "white",
+                  padding: "10px 18px",
+                  borderRadius: "8px",
+                  border: "none"
+                }}
+                onClick={async () => {
+
+                  const { error } = await supabase
+                    .from("students")
+                    .update({
+                      status: "active",
+                      join_date: new Date().toISOString().split("T")[0]
+                    })
+                    .eq("id", confirmActiveStudent.id)
+
+                  if (!error) {
+                    fetchBatchStudents(selectedBatch.name)
+                  }
+
+                  setConfirmActiveStudent(null)
+
+                }}
+              >
+                Yes Activate
+              </button>
+
+              <button
+                style={{
+                  background: "#e5e7eb",
+                  padding: "10px 18px",
+                  borderRadius: "8px",
+                  border: "none"
+                }}
+                onClick={() => setConfirmActiveStudent(null)}
+              >
+                Cancel
+              </button>
+
+            </div>
+
+          </div>
+        </div>
       )}
     </div >
   )

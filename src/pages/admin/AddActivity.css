@@ -159,3 +159,9 @@
   border-radius: 8px;
   cursor: pointer;
 }
+.activity-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+}

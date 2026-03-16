@@ -14,14 +14,15 @@ function AdminLogin() {
 
   
 
-  const handleLogin = async (e) => {
+const handleLogin = async (e) => {
   e.preventDefault()
+
   setError("")
   setLoading(true)
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
-    password,
+    password
   })
 
   setLoading(false)
@@ -31,20 +32,25 @@ function AdminLogin() {
     return
   }
 
-  // ✅ CHECK ADMIN ROLE
+  // ✅ check role
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", data.user.id)
     .single()
 
-  if (profileError || profile?.role !== "admin") {
-    setError("You are not authorized as Admin")
+  if (profileError || profile.role !== "admin") {
+
+    setError("You are not admin")
+
     await supabase.auth.signOut()
+
     return
   }
 
-  navigate("/admin", { replace: true })
+  localStorage.setItem("isAdminLoggedIn", true)
+
+  navigate("/admin")
 }
 
   return (

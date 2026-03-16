@@ -58,28 +58,41 @@ function Settings() {
 
   }
 
-
-  const updateEmail = async () => {
+  const updateEmailProper = async () => {
 
     if (!newEmail) {
       alert("Please enter new email")
       return
     }
 
+    // ✅ Update auth email
     const { error } = await supabase.auth.updateUser({
       email: newEmail
     })
 
-    if (!error) {
-
-      alert("Email updated successfully. Please login again.")
-
-      await supabase.auth.signOut()
-
-      window.location.href = "/admin/login"
-
+    if (error) {
+      alert(error.message)
+      return
     }
+
+    // ✅ get user id
+    const { data: userData } = await supabase.auth.getUser()
+    const userId = userData.user.id
+
+    // ✅ update profiles table
+    await supabase
+      .from("profiles")
+      .update({ email: newEmail })
+      .eq("id", userId)
+
+    alert("Email updated successfully. Please login again.")
+
+    await supabase.auth.signOut()
+
+    window.location.href = "/admin/login"
+
   }
+
   const updatePassword = async () => {
 
     // 🔒 password validation
@@ -172,27 +185,41 @@ function Settings() {
 
     const { data: userData } = await supabase.auth.getUser()
 
-    if (userData?.user) {
+    if (!userData?.user) return
 
-      // set real email
+    const userId = userData.user.id
+    const authEmail = userData.user.email
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("email, profile_photo")
+      .eq("id", userId)
+      .single()
+
+    // ✅ IF EMAIL IS NULL → SAVE AUTH EMAIL
+    if (!data?.email) {
+
+      await supabase
+        .from("profiles")
+        .update({ email: authEmail })
+        .eq("id", userId)
+
       setAdmin({
-        email: userData.user.email,
+        email: authEmail,
         password: ""
       })
 
-      const userId = userData.user.id
+    } else {
 
-      // load profile photo
-      const { data } = await supabase
-        .from("profiles")
-        .select("profile_photo")
-        .eq("id", userId)
-        .maybeSingle()
+      setAdmin({
+        email: data.email,
+        password: ""
+      })
 
-      if (data?.profile_photo) {
-        setAdminPhoto(data.profile_photo)
-      }
+    }
 
+    if (data?.profile_photo) {
+      setAdminPhoto(data.profile_photo)
     }
 
   }
@@ -231,6 +258,38 @@ function Settings() {
       setShowProfilePopup(true)
     })
   }
+  const updateEmailInProfile = async () => {
+
+    if (!newEmail) {
+      alert("Please enter email")
+      return
+    }
+
+    const { data: userData } = await supabase.auth.getUser()
+
+    const userId = userData.user.id
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ email: newEmail })
+      .eq("id", userId)
+
+    if (!error) {
+
+      alert("Email updated successfully")
+
+      setAdmin({
+        ...admin,
+        email: newEmail
+      })
+
+      setShowEmailPopup(false)
+
+    } else {
+      alert(error.message)
+    }
+
+  }
   return (
     <div className="settings-page">
       <div className="resume-settings">
@@ -266,8 +325,8 @@ function Settings() {
             <input value={admin.email} disabled />
 
             <button
-              className="save-btn"
               onClick={() => setShowEmailPopup(true)}
+              className="save-btn"
             >
               Update Email
             </button>
@@ -306,29 +365,16 @@ function Settings() {
             <h3>Update Email</h3>
 
             <input
-              placeholder="Enter your current email"
-              value={currentEmail}
-              onChange={(e) => setCurrentEmail(e.target.value)}
-            />
-
-            <button
-              onClick={() => sendVerificationLink(currentEmail)}
-              className="save-btn"
-            >
-              Send Verification Link
-            </button>
-
-            <input
               placeholder="Enter new email"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
             />
 
             <button
-              onClick={updateEmail}
               className="save-btn"
+              onClick={updateEmailInProfile}
             >
-              Update Email
+              Save
             </button>
 
             <button
