@@ -12,29 +12,36 @@ function AdminResetPassword() {
 
   useEffect(() => {
 
-    const { data: authListener } =
-      supabase.auth.onAuthStateChange((event, session) => {
+    const checkExistingSession = async () => {
+
+      const { data } = await supabase.auth.getSession()
+
+      if (data.session) {
+        console.log("✅ Session already available")
+        setSessionReady(true)
+      }
+
+    }
+
+    checkExistingSession()
+
+    const { data: listener } =
+      supabase.auth.onAuthStateChange((event) => {
 
         if (event === "PASSWORD_RECOVERY") {
-          console.log("Recovery session detected ✅")
+          console.log("✅ Recovery session ready")
           setSessionReady(true)
         }
 
       })
 
-    return () => {
-      authListener.subscription.unsubscribe()
-    }
+    return () => listener.subscription.unsubscribe()
 
   }, [])
-
   const handleUpdate = async (e) => {
     e.preventDefault()
 
-    if (!sessionReady) {
-      alert("Recovery session not ready. Please open link again.")
-      return
-    }
+
 
     setLoading(true)
 
@@ -55,6 +62,9 @@ function AdminResetPassword() {
     }
   }
 
+  if (!sessionReady) {
+    return <h2>Preparing reset session...</h2>
+  }
   return (
     <div className="admin-login-page">
       <div className="login-card">

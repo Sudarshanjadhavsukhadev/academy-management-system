@@ -1,19 +1,9 @@
 import { Routes, Route, Navigate } from "react-router-dom"
 import AttendanceReport from "./pages/admin/attendance/AttendanceReport"
 /* AUTH */
-import Login from "./pages/auth/Login"
-import Signup from "./pages/auth/Signup"
-import ForgotPassword from "./pages/auth/ForgotPassword"
-import ResetPassword from "./pages/auth/ResetPassword"
 
-/* USER */
-import UserLayout from "./layouts/UserLayout"
-import UserLogin from "./pages/user/auth/UserLogin"
-import UserSignup from "./pages/user/auth/UserSignup"
-import UserDashboard from "./pages/user/dashboard/UserDashboard"
-import Profile from "./pages/user/profile/Profile"
-import UserCourseDetails from "./pages/user/course/UserCourseDetails"
-import UserProgress from "./pages/user/progress/UserProgress"
+
+
 
 /* ADMIN */
 import AdminLogin from "./pages/admin/auth/AdminLogin"
@@ -51,16 +41,9 @@ function App() {
       {/* DEFAULT */}
       <Route path="/" element={<Navigate to="/login" />} />
 
-      {/* MAIN AUTH */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
+      
 
-      {/* USER AUTH */}
-      <Route path="/user/login" element={<UserLogin />} />
-      <Route path="/user/signup" element={<UserSignup />} />
-
+     
       {/* ADMIN AUTH */}
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin/forgot-password" element={<AdminForgotPassword />} />
@@ -90,19 +73,7 @@ function App() {
       </Route>
 
       {/* USER PROTECTED */}
-      <Route
-        path="/user"
-        element={
-          <ProtectedUserRoute>
-            <UserLayout />
-          </ProtectedUserRoute>
-        }
-      >
-        <Route index element={<UserDashboard />} />
-        <Route path="course/:courseId" element={<UserCourseDetails />} />
-        <Route path="profile" element={<Profile />} />
-        <Route path="progress" element={<UserProgress />} />
-      </Route>
+     
 
       {/* TRAINER AUTH */}
       <Route path="/trainer/login" element={<TrainerLogin />} />

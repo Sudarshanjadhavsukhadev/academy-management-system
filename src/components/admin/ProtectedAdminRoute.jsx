@@ -1,10 +1,12 @@
-import { Navigate } from "react-router-dom"
+import { Navigate, useLocation } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { supabase } from "../../services/supabase"
 
 function ProtectedAdminRoute({ children }) {
   const [ready, setReady] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const location = useLocation()
+
 
   useEffect(() => {
     let ignore = false
@@ -38,6 +40,15 @@ function ProtectedAdminRoute({ children }) {
       ignore = true
     }
   }, [])
+
+  // ✅ allow reset / forgot / login pages
+  if (
+    location.pathname === "/admin/reset-password" ||
+    location.pathname === "/admin/forgot-password" ||
+    location.pathname === "/admin/login"
+  ) {
+    return children
+  }
 
   // ⭐ Better UX
   if (!ready) {

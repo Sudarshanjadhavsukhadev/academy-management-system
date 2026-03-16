@@ -6,57 +6,75 @@ function AdminForgotPassword() {
   const [email, setEmail] = useState("")
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
+  const [cooldown, setCooldown] = useState(0)
 
   const handleReset = async (e) => {
     e.preventDefault()
 
+    if (cooldown > 0) return
+
     setLoading(true)
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo:"https://academy-management-system.vercel.app/#/admin/reset-password"
-    })
+    const { error } =
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo:
+          "https://academy-management-system-a2tg.vercel.app/admin/reset-password"
+      })
 
     setLoading(false)
 
     if (error) {
-      setMessage("❌ Failed to send reset email")
-    } else {
-      setMessage("✅ Reset link sent to your email")
+      setMessage(error.message)
+      return
     }
+
+    setMessage("✅ Reset link sent")
+
+    // ⭐ start cooldown
+    let seconds = 60
+    setCooldown(seconds)
+
+    const timer = setInterval(() => {
+      seconds--
+
+      setCooldown(seconds)
+
+      if (seconds <= 0) {
+        clearInterval(timer)
+      }
+    }, 1000)
+
   }
 
   return (
     <div className="admin-login-page">
-
       <div className="login-card">
 
         <h2>Reset Password</h2>
-        <p>Enter your admin email to receive reset link</p>
 
         <form onSubmit={handleReset}>
 
           <input
             type="email"
-            placeholder="Enter admin email"
             value={email}
+            placeholder="Enter admin email"
             onChange={(e) => setEmail(e.target.value)}
             required
           />
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Sending..." : "Send Reset Link"}
+          <button disabled={loading || cooldown > 0}>
+            {loading
+              ? "Sending..."
+              : cooldown > 0
+                ? `Wait ${cooldown}s`
+                : "Send Reset Link"}
           </button>
 
         </form>
 
-        {message && (
-          <div className="success-msg">
-            {message}
-          </div>
-        )}
+        {message && <div className="success-msg">{message}</div>}
 
       </div>
-
     </div>
   )
 }

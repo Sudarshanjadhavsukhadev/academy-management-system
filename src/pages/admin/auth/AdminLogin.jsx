@@ -50,7 +50,7 @@ const handleLogin = async (e) => {
 
   localStorage.setItem("isAdminLoggedIn", true)
 
-  navigate("/admin")
+  navigate("/admin", { replace: true })
 }
 
   return (
