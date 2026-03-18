@@ -27,7 +27,7 @@ function Reports() {
   const [summary, setSummary] = useState([])
   const [monthlyRevenue, setMonthlyRevenue] = useState({})
   const [profitSplit, setProfitSplit] = useState({})
- 
+
   const [marketingData, setMarketingData] = useState({})
 
   useEffect(() => {
@@ -64,31 +64,41 @@ function Reports() {
       { title: "Net Profit", value: `₹${netProfit}` },
     ])
 
-    // last 6 months
-    const monthlyMap = {}
+    // last 12 months (1 Year)
+    // ===== LAST 12 MONTH REVENUE (FIXED BARS) =====
+
+    const labels = []
+    const values = new Array(12).fill(0)
 
     const today = new Date()
 
-    for (let i = 5; i >= 0; i--) {
+    // create fixed 12 month labels
+    for (let i = 11; i >= 0; i--) {
       const d = new Date(today.getFullYear(), today.getMonth() - i, 1)
-      const monthName = d.toLocaleString("default", { month: "short" })
-      monthlyMap[monthName] = 0
+
+      labels.push(
+        d.toLocaleString("default", {
+          month: "short",
+          year: "2-digit"
+        })
+      )
     }
 
-    // fill revenue
+    // fill revenue correctly
     students.forEach((s) => {
       if (!s.join_date) return
 
       const d = new Date(s.join_date)
-      const monthName = d.toLocaleString("default", { month: "short" })
 
-      if (monthlyMap.hasOwnProperty(monthName)) {
-        monthlyMap[monthName] += Number(s.fees) || 0
+      const diffMonths =
+        (today.getFullYear() - d.getFullYear()) * 12 +
+        (today.getMonth() - d.getMonth())
+
+      if (diffMonths >= 0 && diffMonths < 12) {
+        const index = 11 - diffMonths
+        values[index] += Number(s.fees) || 0
       }
     })
-
-    const labels = Object.keys(monthlyMap)
-    const values = Object.values(monthlyMap)
 
     setMonthlyRevenue({
       labels,
@@ -100,13 +110,12 @@ function Reports() {
         },
       ],
     })
-
     /* ===== COURSE ENROLLMENT ===== */
 
     const courseMap = {}
 
     students.forEach((s) => {
-    const course = s.activity || "Unknown"
+      const course = s.activity || "Unknown"
 
       courseMap[course] = (courseMap[course] || 0) + 1
     })
@@ -177,7 +186,7 @@ function Reports() {
         },
       ],
     })
-   
+
   }
 
 
@@ -197,22 +206,20 @@ function Reports() {
       {/* CHARTS */}
       <div className="reports-charts">
 
-        <div className="chart-box">
-          <h3>Monthly Revenue</h3>
-          {monthlyRevenue.labels && <Bar data={monthlyRevenue} />}
-        </div>
 
-        <div className="chart-box">
+
+        <div className="chart-box marketing-chart">
           <h3>Students per Activity</h3>
 
-          <div style={{ height: "280px" }}>
+          <div style={{ flex: 1, position: "relative" }}>
             {profitSplit.labels && (
               <Pie
                 data={profitSplit}
                 options={{
                   plugins: {
                     legend: {
-                      position: "bottom"
+                      position: "right",
+                      align: "center"
                     }
                   },
                   maintainAspectRatio: false
@@ -222,12 +229,36 @@ function Reports() {
           </div>
         </div>
         <div className="chart-box marketing-chart">
+          <h3>Monthly Revenue</h3>
+          <div style={{ flex: 1, position: "relative" }}>
+            {monthlyRevenue.labels && (
+              <Bar
+                data={monthlyRevenue}
+                options={{
+                  maintainAspectRatio: false
+                }}
+              />
+            )}
+          </div>
+        </div>
+        <div className="chart-box marketing-chart">
           <h3>Marketing Sources</h3>
-          {marketingData.labels && <Bar data={marketingData} />}
+
+          <div style={{ flex: 1, position: "relative" }}>
+            {marketingData.labels && (
+              <Bar
+                data={marketingData}
+                options={{
+                  maintainAspectRatio: false
+                }}
+              />
+            )}
+          </div>
+
         </div>
 
       </div>
-     
+
     </div>
 
   )

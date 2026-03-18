@@ -6,98 +6,28 @@ import { supabase } from "../../../services/supabase"
 
 
 
-
 const TrainerRegister = () => {
 
     const navigate = useNavigate()
-
-
 
     const [formData, setFormData] = useState({
         name: "",
         mobile: "",
         email: "",
-        password: "",
-        branch: "",
-        course: "",
-        batches: []
+        password: ""
     })
-    const [batches, setBatches] = useState([])
-    const [branches, setBranches] = useState([])
-    const [courses, setCourses] = useState([])
-    const fetchBranches = async () => {
-        const { data, error } = await supabase
-            .from("branches")
-            .select("*")
-            .order("id", { ascending: true })
+    const [systemMessage, setSystemMessage] = useState("")
 
-        if (error) {
-            console.error(error)
-        } else {
-            setBranches(data.map(branch => branch.name))
-        }
-    }
-    const fetchBatches = async () => {
-        const { data, error } = await supabase
-            .from("batches")
-            .select("*")
 
-        if (!error) {
-            setBatches(data)
-        }
-    }
-    useEffect(() => {
-        fetchBranches()
-        fetchBatches()
-    }, [])
-    useEffect(() => {
-        if (!formData.branch) return
-
-        const filteredCourses = [
-            ...new Set(
-                batches
-                    .filter(b => b.branch === formData.branch)
-                    .map(b => b.course)
-            )
-        ]
-
-        setCourses(filteredCourses)
-    }, [formData.branch, batches])
 
     const handleChange = (e) => {
         const { name, value } = e.target
 
-        if (name === "branch") {
-            setCourses([]) // ⭐ ADD THIS
-
-            setFormData({
-                ...formData,
-                branch: value,
-                course: "",
-                batches: []
-            })
-        } else if (name === "course") {
-            setFormData({
-                ...formData,
-                course: value,
-                batches: []
-            })
-        } else {
-            setFormData({ ...formData, [name]: value })
-        }
-    }
-
-
-    const handleBatchChange = (e) => {
-        const value = e.target.value
-        setFormData((prev) => ({
+        setFormData(prev => ({
             ...prev,
-            batches: prev.batches.includes(value)
-                ? prev.batches.filter((b) => b !== value)
-                : [...prev.batches, value]
+            [name]: value
         }))
     }
-
 
     const resetForm = () => {
         setFormData({
@@ -105,18 +35,13 @@ const TrainerRegister = () => {
             mobile: "",
             email: "",
             password: "",
-            branch: "",
-            course: "",
-            batches: []
+
         })
-
-        setCourses([])
     }
-
     const handleSubmit = async (e) => {
         e.preventDefault()
 
-        // 1️⃣ CREATE AUTH USER
+        // CREATE AUTH USER
         const { data: authData, error: authError } =
             await supabase.auth.signUp({
                 email: formData.email,
@@ -128,10 +53,10 @@ const TrainerRegister = () => {
             return
         }
 
-        const userId = authData.user.id // 🔥 THIS IS IMPORTANT
+        const userId = authData.user.id
 
-        // 2️⃣ INSERT TRAINER (id = auth.uid)
-        const { data: trainer, error: trainerError } = await supabase
+        // INSERT TRAINER
+        const { error: trainerError } = await supabase
             .from("trainers")
             .insert([
                 {
@@ -139,67 +64,44 @@ const TrainerRegister = () => {
                     name: formData.name,
                     mobile: formData.mobile,
                     email: formData.email,
-                    branch: formData.branch,
-                    course: formData.course,
-                    status: "Pending"   // ⭐ IMPORTANT
+
+                    status: "Pending"
                 }
             ])
-            .select()
-            .single()
 
         if (trainerError) {
             alert(trainerError.message)
             return
         }
 
-        // 3️⃣ INSERT TRAINER BATCHES
-        if (formData.batches.length > 0) {
-            const batchRows = formData.batches.map((batch) => ({
-                trainer_id: userId,
-                batch_name: batch,
-            }))
-
-            const { error: batchError } = await supabase
-                .from("trainer_batches")
-                .insert(batchRows)
-
-            if (batchError) {
-                alert(batchError.message)
-                return
+        await supabase.from("notifications").insert([
+            {
+                message: `🆕 New trainer registration request from ${formData.name}`
             }
-        }
+        ])
 
-        // 4️⃣ LOGIN SUCCESS
-        localStorage.setItem("trainerToken", userId)
-        // 4️⃣ SUCCESS
-        await supabase
-            .from("notifications")
-            .insert([
-                {
-                    message: `🆕 New trainer registration request from ${formData.name}`
-                }
-            ])
         resetForm()
 
-        alert("Registration submitted. Wait for admin approval.")
+        setSystemMessage("Registration successful. Redirecting to login...")
 
-
+        setTimeout(() => {
+            navigate("/trainer/login")
+        }, 1500)
     }
-
-    const availableBatches = batches.filter(
-        b =>
-            b.branch === formData.branch &&
-            b.course === formData.course
-    )
-
 
     return (
         <div className="trainer-auth-container">
+            {systemMessage && (
+                <div className="system-message">
+                    {systemMessage}
+                </div>
+            )}
             <div className="trainer-auth-card">
                 <h2>Trainer Registration</h2>
                 <p>Create your trainer account</p>
 
                 <form onSubmit={handleSubmit} autoComplete="off">
+
                     <label>Full Name</label>
                     <input
                         type="text"
@@ -240,62 +142,10 @@ const TrainerRegister = () => {
                         required
                     />
 
-                    <label>Select Branch</label>
-                    <select
-                        name="branch"
-                        value={formData.branch}
-                        onChange={handleChange}
-                        required
-                    >
-                        <option value="">Select Branch</option>
-
-                        {branches.map(branch => (
-                            <option key={branch} value={branch}>
-                                {branch}
-                            </option>
-                        ))}
-                    </select>
-
-                    {/* Course */}
-                    {formData.branch && (
-                        <>
-                            <label>Select Course</label>
-                            <select
-                                name="course"
-                                value={formData.course}
-                                onChange={handleChange}
-                                required
-                            >
-                                <option value="">Select Course</option>
-
-                                {courses.map(course => (
-                                    <option key={course} value={course}>
-                                        {course}
-                                    </option>
-                                ))}
-                            </select>
-                        </>
-                    )}
-                    {/* Batches */}
-                    {formData.course && (
-                        <div className="checkbox-group">
-                            <label>Available Batches ({availableBatches.length})</label>
-
-                            {availableBatches.map(batch => (
-                                <label key={batch.id}>
-                                    <input
-                                        type="checkbox"
-                                        value={batch.name}
-                                        onChange={handleBatchChange}
-                                    />
-                                    {batch.name}
-                                </label>
-                            ))}
-                        </div>
-                    )}
 
 
                     <button type="submit">Register</button>
+
                 </form>
 
                 <p className="auth-link">

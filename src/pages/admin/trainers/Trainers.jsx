@@ -36,7 +36,7 @@ function Trainers() {
 
         data.map(async (t) => {
 
-          const batches = await fetchTrainerBatches(t.name)
+          const batches = await fetchTrainerBatches(t.user_id)
 
           return {
             ...t,
@@ -50,15 +50,14 @@ function Trainers() {
       setTrainers(enriched)
     }
   }
-  const fetchTrainerBatches = async (trainerName) => {
+  const fetchTrainerBatches = async (trainerId) => {
 
     const { data } = await supabase
-      .from("batches")
-      .select("name")
-      .eq("trainer", trainerName)
+      .from("trainer_batches")
+      .select("batch_name")
+      .eq("trainer_id", trainerId)
 
     return data || []
-
   }
   const fetchAllBatches = async () => {
 
@@ -252,7 +251,7 @@ function Trainers() {
           <table className="trainers-table">
             <thead>
               <tr>
-               
+
                 <th>Name</th>
                 <th>Email</th>
                 <th>Batches</th>
@@ -265,21 +264,21 @@ function Trainers() {
             <tbody>
               {filteredTrainers.map((trainer) => (
                 <tr key={trainer.id}>
-                  
+
                   <td>{trainer.name}</td>
                   <td>{trainer.email}</td>
 
                   <td>
                     {trainer.batches?.map(b => (
-                      <span className="batch-chip" key={b.name}>
-                        {b.name}
+                      <span className="batch-chip" key={b.batch_name}>
+                        {b.batch_name}
                       </span>
                     ))}
                   </td>
 
                   <td>
                     <span className={`status ${trainer.status?.toLowerCase()}`}>
-                      {trainer.status === "Pending" && "🟡 Registration Request"}
+                      {trainer.status === "Pending" && "🟡 Pending Approval"}
                       {trainer.status === "Active" && "🟢 Approved"}
                       {trainer.status === "Rejected" && "🔴 Rejected"}
                     </span>
@@ -287,13 +286,24 @@ function Trainers() {
                   <td>
                     <button
                       className="edit-btn"
-                      onClick={() => {
+                      onClick={async () => {
+
+                        const confirmEdit = window.confirm(
+                          `⚠️ You are about to edit trainer "${trainer.name}". Continue?`
+                        )
+
+                        if (!confirmEdit) return
 
                         setEditingTrainer(trainer)
 
-                        const batches = trainer.batches?.map(b => b.name) || []
+                        const { data } = await supabase
+                          .from("trainer_batches")
+                          .select("batch_name")
+                          .eq("trainer_id", trainer.user_id)
 
-                        setSelectedBatches(batches)
+                        const existing = data?.map(b => b.batch_name) || []
+
+                        setSelectedBatches(existing)
 
                       }}
                     >
@@ -302,12 +312,35 @@ function Trainers() {
                   </td>
 
                   <td>
-                    <button
-                      className={trainer.status === "Active" ? "active-btn" : "disable-btn"}
-                      onClick={() => toggleTrainerStatus(trainer)}
-                    >
-                      {trainer.status === "Active" ? "Active" : "Disabled"}
-                    </button>
+
+                    {trainer.status === "Pending" && (
+                      <>
+                        <button
+                          className="approve-btn"
+                          onClick={() => approveTrainer(trainer.id)}
+                        >
+                          Approve
+                        </button>
+
+                        <button
+                          className="reject-btn"
+                          onClick={() => rejectTrainer(trainer.id)}
+                          style={{ marginLeft: 10 }}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+
+                    {trainer.status !== "Pending" && (
+                      <button
+                        className={trainer.status === "Active" ? "active-btn" : "disable-btn"}
+                        onClick={() => toggleTrainerStatus(trainer)}
+                      >
+                        {trainer.status === "Active" ? "Active" : "Disabled"}
+                      </button>
+                    )}
+
                   </td>
                 </tr>
               ))}
@@ -448,7 +481,9 @@ function Trainers() {
                 className="add-btn"
                 onClick={async () => {
 
-                  // ⭐ update trainer info
+                  console.log("Trainer ID:", editingTrainer.id)
+                  console.log("Selected:", selectedBatches)
+
                   const { error } = await supabase
                     .from("trainers")
                     .update({
@@ -457,25 +492,47 @@ function Trainers() {
                     })
                     .eq("id", editingTrainer.id)
 
-                  if (error) return
+                  if (error) {
+                    console.log(error)
+                    alert("Trainer update failed")
+                    return
+                  }
 
-                  // ⭐ delete old trainer batches
-                  await supabase
+                  // delete old mapping
+                  const { error: deleteError } = await supabase
                     .from("trainer_batches")
                     .delete()
-                    .eq("trainer_id", editingTrainer.id)
+                    .eq("trainer_id", editingTrainer.user_id)
 
-                  // ⭐ insert new selected batches
-                  const rows = selectedBatches.map(batch => ({
-                    trainer_id: editingTrainer.id,
-                    batch_name: batch
-                  }))
+                  if (deleteError) {
+                    console.log(deleteError)
+                    alert("Delete failed")
+                    return
+                  }
 
-                  if (rows.length > 0) {
-                    await supabase
+                  // insert new mapping
+                  if (selectedBatches.length > 0) {
+
+                    const rows = selectedBatches.map(batch => ({
+                      trainer_id: editingTrainer.user_id,
+                      batch_name: batch
+                    }))
+
+                    const { data, error: insertError } = await supabase
                       .from("trainer_batches")
                       .insert(rows)
+                      .select()
+
+                    console.log("Insert Data:", data)
+                    console.log("Insert Error:", insertError)
+
+                    if (insertError) {
+                      alert("Insert batches failed")
+                      return
+                    }
                   }
+
+                  alert("Trainer Updated ✅")
 
                   fetchTrainers()
                   setEditingTrainer(null)

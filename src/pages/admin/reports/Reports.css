@@ -124,7 +124,8 @@
   padding: 20px;
   border-radius: 18px;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-  height: 360px;   /* add this */
+  height: 360px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;   /* ⭐ ADD THIS */
 }

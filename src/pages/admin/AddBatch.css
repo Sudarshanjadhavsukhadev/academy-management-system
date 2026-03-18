@@ -1,231 +1,308 @@
 /* ================= PAGE ROOT ================= */
 
 .add-batch-page {
-padding: 50px;
-min-height: 100vh;
-background:
-radial-gradient(circle at 15% 20%, #eef2ff, transparent),
-radial-gradient(circle at 85% 40%, #f1f5ff, transparent),
-#f8fafc;
-font-family: "Inter", sans-serif;
+  padding: 50px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 15% 20%, #eef2ff, transparent),
+    radial-gradient(circle at 85% 40%, #f1f5ff, transparent),
+    #f8fafc;
+  font-family: "Inter", sans-serif;
 }
 
 /* ================= HEADER ================= */
 
 .batch-header {
-display: flex;
-justify-content: space-between;
-align-items: center;
-margin-bottom: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
 }
 
 .add-batch-page h1 {
-font-size: 36px;
-font-weight: 800;
-letter-spacing: -0.6px;
-color: #0f172a;
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  color: #0f172a;
 }
 
 /* ================= SUCCESS ================= */
 
 .success-msg {
-margin-top: 20px;
-background: linear-gradient(135deg,#ecfdf5,#d1fae5);
-color: #065f46;
-padding: 16px 20px;
-border-radius: 14px;
-font-weight: 600;
-width: fit-content;
-box-shadow: 0 10px 25px rgba(0,0,0,.06);
-animation: fadeUp .4s ease;
+  margin-top: 20px;
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  color: #065f46;
+  padding: 16px 20px;
+  border-radius: 14px;
+  font-weight: 600;
+  width: fit-content;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, .06);
+  animation: fadeUp .4s ease;
 }
 
 /* ================= LAYOUT ================= */
 
 .layout-batch {
-display: flex;
-gap: 70px;
-align-items: flex-start;
-margin-top: 30px;
+  display: flex;
+  gap: 70px;
+  align-items: flex-start;
+  margin-top: 30px;
 }
 
 /* ================= FORM CARD ================= */
 
 .batch-form {
-background: rgba(255,255,255,.75);
-backdrop-filter: blur(14px);
-padding: 40px;
-border-radius: 26px;
-width: 600px;
-box-shadow: 0 30px 70px rgba(0,0,0,.12);
+  background: rgba(255, 255, 255, .75);
+  backdrop-filter: blur(14px);
+  padding: 40px;
+  border-radius: 26px;
+  width: 600px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, .12);
 
-display: flex;
-flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ================= LABEL ================= */
 
 .batch-form label {
-margin-top: 20px;
-font-weight: 700;
-font-size: 13px;
-color: #64748b;
-letter-spacing: .4px;
+  margin-top: 20px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #64748b;
+  letter-spacing: .4px;
 }
 
 /* ================= INPUT ================= */
 
 .batch-form input,
 .batch-form select {
-margin-top: 8px;
-padding: 16px 18px;
-border-radius: 16px;
-border: 1px solid #e5e7eb;
-font-size: 14px;
-background: #f8fafc;
-transition: .25s;
+  margin-top: 8px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  font-size: 14px;
+  background: #f8fafc;
+  transition: .25s;
 }
 
 .batch-form input:hover,
 .batch-form select:hover {
-background: white;
+  background: white;
 }
 
 .batch-form input:focus,
 .batch-form select:focus {
-outline: none;
-border-color: #6366f1;
-background: white;
-box-shadow: 0 0 0 4px rgba(99,102,241,.15);
+  outline: none;
+  border-color: #6366f1;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, .15);
 }
 
 /* ================= DAYS ================= */
 
 .days-select {
-display: flex;
-gap: 12px;
-flex-wrap: wrap;
-margin-top: 12px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
 }
 
 .day {
-padding: 11px 18px;
-border-radius: 999px;
-border: 1px solid #e5e7eb;
-background: white;
-cursor: pointer;
-font-weight: 600;
-transition: .25s;
+  padding: 11px 18px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  cursor: pointer;
+  font-weight: 600;
+  transition: .25s;
 }
 
 .day:hover {
-transform: translateY(-3px);
-box-shadow: 0 12px 25px rgba(0,0,0,.08);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 25px rgba(0, 0, 0, .08);
 }
 
 /* ACTIVE DAY */
 
 .active-day {
-background: linear-gradient(135deg,#6366f1,#4338ca);
-color: white;
-border: none;
-box-shadow: 0 12px 30px rgba(79,70,229,.4);
+  background: linear-gradient(135deg, #6366f1, #4338ca);
+  color: white;
+  border: none;
+  box-shadow: 0 12px 30px rgba(79, 70, 229, .4);
 }
 
 /* ================= BUTTON ================= */
 
 .save-batch-btn {
-margin-top: 34px;
-padding: 18px;
-border-radius: 18px;
-border: none;
-background: linear-gradient(135deg,#6366f1,#4338ca);
-color: white;
-font-weight: 800;
-font-size: 15px;
-cursor: pointer;
-transition: .3s;
-box-shadow: 0 18px 45px rgba(79,70,229,.45);
+  margin-top: 34px;
+  padding: 18px;
+  border-radius: 18px;
+  border: none;
+  background: linear-gradient(135deg, #6366f1, #4338ca);
+  color: white;
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+  transition: .3s;
+  box-shadow: 0 18px 45px rgba(79, 70, 229, .45);
 }
 
 .save-batch-btn:hover {
-transform: translateY(-5px) scale(1.02);
-box-shadow: 0 28px 60px rgba(79,70,229,.55);
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 28px 60px rgba(79, 70, 229, .55);
 }
 
 .save-batch-btn:active {
-transform: scale(.96);
+  transform: scale(.96);
 }
 
 /* ================= RIGHT PANEL ================= */
 
 .batch-list-panel {
-width: 420px;
+  width: 420px;
 }
 
 /* ================= BATCH CARD ================= */
 
 .batch-card {
-background: white;
-padding: 20px;
-border-radius: 20px;
-margin-bottom: 18px;
-box-shadow: 0 15px 35px rgba(0,0,0,.08);
+  background: white;
+  padding: 20px;
+  border-radius: 20px;
+  margin-bottom: 18px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, .08);
 
-display: flex;
-justify-content: space-between;
-align-items: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 
-transition: .3s;
+  transition: .3s;
 }
 
 .batch-card:hover {
-transform: translateY(-6px);
-box-shadow: 0 25px 55px rgba(0,0,0,.15);
+  transform: translateY(-6px);
+  box-shadow: 0 25px 55px rgba(0, 0, 0, .15);
 }
 
 /* Batch Name */
 .batch-card h3 {
-font-size: 16px;
-font-weight: 700;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 /* Meta */
 .batch-meta {
-font-size: 12px;
-color: #64748b;
-margin-top: 4px;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
 }
 
 /* ================= ANIMATION ================= */
 
 @keyframes fadeUp {
-from {
-opacity: 0;
-transform: translateY(14px);
-}
-to {
-opacity: 1;
-transform: translateY(0);
-}
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ================= RESPONSIVE ================= */
 
 @media (max-width: 1000px) {
 
-.layout-batch {
-flex-direction: column;
-gap: 30px;
+  .layout-batch {
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  .batch-form,
+  .batch-list-panel {
+    width: 100%;
+  }
+
+  .add-batch-page {
+    padding: 30px;
+  }
+
 }
 
-.batch-form,
-.batch-list-panel {
-width: 100%;
+/* ===== REAL CLOCK TIME PICKER ===== */
+
+.real-clock-input {
+  position: relative;
+  width: 100%;
 }
 
-.add-batch-page {
-padding: 30px;
+/* VERY IMPORTANT */
+.real-clock-input .react-time-picker__clock {
+  position: absolute !important;
+  top: 60px;
+  left: 0;
+  z-index: 999;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
 }
 
+.real-clock-input .react-time-picker__wrapper {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  height: auto !important;
+  box-shadow: none !important;
+}
+.real-clock-input .react-time-picker__wrapper:focus-within {
+  border-color: #6366f1;
+  box-shadow: none !important;
+}
+
+.real-clock-input .react-time-picker__wrapper:hover {
+  border-color: #6366f1;
+}
+
+.real-clock-input .react-time-picker__inputGroup {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.real-clock-input .react-time-picker__clock-button {
+  font-size: 18px;
+}
+
+.real-clock-input .react-clock {
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  border: none;
+}
+
+.react-time-picker__clock {
+  z-index: 9999;
+}
+.real-clock-input .react-time-picker{
+  width: 100%;
+}
+
+.real-clock-input .react-time-picker__wrapper{
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.real-clock-input .react-time-picker__inputGroup{
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.real-clock-input .react-time-picker__inputGroup input{
+  width: 40px !important;
+  min-width: 40px !important;
+  text-align: center;
 }

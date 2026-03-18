@@ -33,60 +33,117 @@ const TrainerDashboard = () => {
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [attendance, setAttendance] = useState({})
   const [batchSearch, setBatchSearch] = useState("")
-  useEffect(() => {
-    const fetchTrainerData = async () => {
-      const { data: authData } = await supabase.auth.getUser()
-      const user = authData?.user
+  const [showCalendar, setShowCalendar] = useState(false)
+  const [attendanceDate, setAttendanceDate] = useState("")
+  const fetchTrainerData = async () => {
 
-      if (!user) {
-        console.error("Trainer not logged in")
-        return
-      }
+    const { data: authData } = await supabase.auth.getUser()
+    const user = authData?.user
 
-      // ✅ Fetch from trainers table
-      const { data: trainerData, error: trainerError } = await supabase
-        .from("trainers")
-        .select("*")
-        .eq("email", user.email)
-        .single()
+    if (!user) return
 
-      if (trainerError) {
-        console.error(trainerError)
-        return
-      }
+    // ✅ get trainer
+    const { data: trainerData } = await supabase
+      .from("trainers")
+      .select("*")
+      .eq("user_id", user.id)
+      .single()
 
-      setTrainer(trainerData)
-      // ✅ Fetch trainer batches from relation table
-      const { data: batchData, error: batchError } = await supabase
-        .from("trainer_batches")
-        .select("batch_name")
-        .eq("trainer_id", trainerData.user_id)
 
-      if (batchError) {
-        console.error(batchError)
-      } else {
-        const batchList = batchData.map(b => b.batch_name)
-        setBatches(batchList)
-      }
-      // ✅ If you want batches from column (comma separated)
+    if (!trainerData) return
 
-      // ✅ Fetch students assigned to trainer batches
-      if (trainerData) {
-        const { data: studentData, error: studentError } = await supabase
-          .from("students")
-          .select("*")
-          .eq("trainer_id", trainerData.user_id)
-
-        if (studentError) {
-          console.error(studentError)
-        } else {
-          setStudents(studentData)
-        }
-      }
-
+    // 🔥 VERY IMPORTANT PROTECTION
+    if (trainerData.status !== "Active") {
+      alert("Wait for admin approval")
+      return
     }
 
+    setTrainer(trainerData)
+
+    // ✅ get assigned batches
+    const { data: batchData } = await supabase
+      .from("trainer_batches")
+      .select("*")
+      .eq("trainer_id", trainerData.user_id)
+
+
+    const batchList = batchData?.map(b => b.batch_name) || []
+
+    setBatches(batchList)
+
+    // 🔥 VERY IMPORTANT SAFETY
+    if (batchList.length === 0) {
+      setStudents([])
+      return
+    }
+
+    // ✅ get students
+    const { data: studentData } = await supabase
+      .from("students")
+      .select("*")
+      .in("batch", batchList)
+
+    setStudents(studentData || [])
+  }
+  useEffect(() => {
+
     fetchTrainerData()
+
+    const batchChannel = supabase
+      .channel("trainer-batch-listener")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "trainer_batches",
+        },
+        () => {
+          console.log("Batch Updated → Auto Refresh")
+          fetchTrainerData()
+        }
+      )
+      .subscribe()
+
+    const trainerChannel = supabase
+      .channel("trainer-status-listener")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "trainers",
+        },
+        async (payload) => {
+
+          const { data: authData } = await supabase.auth.getUser()
+          const user = authData?.user
+
+          if (!user) return
+
+          if (payload.new.user_id === user.id) {
+
+            if (payload.new.status !== "Active") {
+
+              alert("Your account has been disabled by admin")
+
+              await supabase.auth.signOut()
+
+              window.location.href = "/trainer/login"
+
+            }
+
+          }
+
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(batchChannel)
+      supabase.removeChannel(trainerChannel)
+    }
+
   }, [])
 
   const handleAttendanceClick = (studentId) => {
@@ -112,6 +169,29 @@ const TrainerDashboard = () => {
     })
   }
 
+
+  const saveAttendance = async (selectedDate) => {
+
+    const dateToSave =
+      selectedDate || new Date().toISOString().split("T")[0]
+
+    const records = Object.keys(attendance).map(studentId => ({
+      student_id: studentId,
+      batch: selectedBatch,
+      date: dateToSave,
+      status: attendance[studentId] === true ? "Present" : "Absent"
+    }))
+
+    const { error } = await supabase
+      .from("attendance")
+      .insert(records)
+
+    if (!error) {
+      alert("Attendance Saved ✅")
+      setAttendance({})
+      setAttendanceDate("")
+    }
+  }
   const chartData = {
     labels: batches,
     datasets: [
@@ -231,7 +311,51 @@ const TrainerDashboard = () => {
             )
           })}
         </div>
+        <div className="calendar-actions">
+          <button className="calendar-confirm"
+            onClick={() => setShowCalendar(true)}
+          >
+            Save Attendance
+          </button>
+        </div>
+        {showCalendar && (
+          <div className="calendar-overlay">
 
+            <div className="calendar-popup">
+
+              <h2>Select Attendance Date</h2>
+
+              <input
+                type="date"
+                value={attendanceDate}
+                onChange={(e) => setAttendanceDate(e.target.value)}
+              />
+
+              <div style={{ marginTop: 20 }}>
+
+                <button
+                  className="save-btn"
+                  onClick={() => {
+                    saveAttendance(attendanceDate)
+                    setShowCalendar(false)
+                  }}
+                >
+                  Confirm
+                </button>
+
+                <button
+                  style={{ marginLeft: 10 }}
+                  onClick={() => setShowCalendar(false)}
+                >
+                  Cancel
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+        )}
       </div>
     )
   }
@@ -277,7 +401,6 @@ const TrainerDashboard = () => {
           )
         })}
       </div>
-
 
 
 

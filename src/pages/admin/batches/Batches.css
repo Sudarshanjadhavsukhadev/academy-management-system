@@ -1326,3 +1326,10 @@ select:focus {
     width: 100%;
   }
 }
+.overdue-row {
+  background: #fee2e2;
+}
+
+.due-soon-row {
+  background: #fef3c7;
+}

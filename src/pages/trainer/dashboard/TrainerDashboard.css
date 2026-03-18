@@ -190,6 +190,7 @@
   transform: translateY(-3px);
   box-shadow: 0 15px 30px rgba(79, 70, 229, 0.35);
 }
+
 /* ===== PAGE BACKGROUND ===== */
 .profile-page {
   min-height: 100vh;
@@ -291,4 +292,106 @@
 .profile-save-btn:hover {
   transform: translateY(-3px);
   box-shadow: 0 15px 30px rgba(79, 70, 229, 0.35);
+}
+
+/* 🔥 OVERLAY */
+.calendar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+/* 🔥 POPUP CARD */
+.calendar-popup {
+  width: 420px;
+  background: white;
+  border-radius: 22px;
+  padding: 40px;
+  text-align: center;
+  box-shadow: 0px 30px 80px rgba(0,0,0,0.25);
+  animation: popupScale 0.25s ease;
+}
+
+/* 🔥 TITLE */
+.calendar-popup h2 {
+  font-size: 26px;
+  margin-bottom: 25px;
+  color: #0f172a;
+}
+
+/* 🔥 DATE INPUT */
+.calendar-popup input[type="date"] {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  font-size: 16px;
+  transition: 0.2s;
+}
+
+.calendar-popup input[type="date"]:focus {
+  border-color: #6366f1;
+  outline: none;
+  box-shadow: 0px 0px 0px 3px rgba(99,102,241,0.2);
+}
+
+/* 🔥 BUTTON ROW */
+.calendar-actions {
+  margin-top: 28px;
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+}
+
+/* 🔥 CONFIRM BUTTON */
+.calendar-confirm {
+  background: linear-gradient(135deg,#6366f1,#4f46e5);
+  color: white;
+  border: none;
+  padding: 13px 26px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+.calendar-confirm:hover {
+  transform: translateY(-2px);
+  box-shadow: 0px 12px 25px rgba(99,102,241,0.4);
+}
+
+/* 🔥 CANCEL BUTTON */
+.calendar-cancel {
+  background: #f1f5f9;
+  border: none;
+  padding: 13px 26px;
+  border-radius: 12px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.calendar-cancel:hover {
+  background: #e2e8f0;
+}
+
+/* 🔥 POPUP ANIMATION */
+@keyframes popupScale {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }

@@ -62,7 +62,18 @@ function AdminDashboard() {
 
   const [revenueType, setRevenueType] = useState(null)
   const [dbSize, setDbSize] = useState(0)
+  const [tableUsage, setTableUsage] = useState([])
   const DB_LIMIT = 500 * 1024 * 1024
+
+  useEffect(() => {
+
+    const removed = JSON.parse(
+      localStorage.getItem("removedNotifications") || "[]"
+    )
+
+    setRemovedNotifications(removed)
+
+  }, [])
   // 📂 Excel Upload Handler
   const handleExcelUpload = (e) => {
     const file = e.target.files[0]
@@ -266,11 +277,37 @@ function AdminDashboard() {
       })
 
       if (birthdayStudents.length > 0) {
+
         const messages = birthdayStudents.map(
           s => `🎂 Today is ${s.name}'s birthday`
         )
-        setNotifications(messages)
-        setShowNotifications(true)   // 🔥 auto open panel
+
+        const removed = JSON.parse(
+          localStorage.getItem("removedNotifications") || "[]"
+        )
+
+        setNotifications(prev => {
+
+          const merged = [...prev]
+
+          messages.forEach(msg => {
+
+            if (removed.includes(msg)) return   // ⭐ VERY IMPORTANT
+
+            if (!merged.includes(msg)) {
+              merged.push(msg)
+            }
+
+          })
+
+          return merged
+
+        })
+
+        if (messages.some(msg => !removed.includes(msg))) {
+          setShowNotifications(true)
+        }
+
       }
     }
 
@@ -291,9 +328,30 @@ function AdminDashboard() {
       }
 
       if (data) {
-        const messages = data.map(n => n.message)
-        setNotifications(messages)
+        const clearedAt = localStorage.getItem("notificationsClearedAt")
 
+        const messages = data
+          .filter(n => {
+
+            if (!clearedAt) return true
+
+            return new Date(n.created_at) > new Date(clearedAt)
+
+          })
+          .map(n => n.message)
+        setNotifications(prev => {
+
+          const merged = [...prev]
+
+          messages.forEach(msg => {
+            if (!merged.includes(msg)) {
+              merged.push(msg)
+            }
+          })
+
+          return merged
+
+        })
         if (messages.length > 0) {
 
           const latestMessage = messages[0]
@@ -422,9 +480,11 @@ function AdminDashboard() {
   useEffect(() => {
 
     fetchDatabaseSize()
+    fetchTableUsage()
 
     const interval = setInterval(() => {
       fetchDatabaseSize()
+      fetchTableUsage()
     }, 15000)
 
     return () => clearInterval(interval)
@@ -435,14 +495,14 @@ function AdminDashboard() {
     const { error } = await supabase
       .from("notifications")
       .delete()
-      .neq("id", 0)     // ⭐ DELETE ALL SAFELY
+      .neq("id", 0)
 
     if (error) {
       console.log(error)
       return
     }
 
-    // ⭐ clear UI
+    // ⭐ clear UI instantly
     setNotifications([])
 
     // ⭐ close panel
@@ -451,19 +511,25 @@ function AdminDashboard() {
     // ⭐ remove toast memory
     localStorage.removeItem("lastToast")
 
+    // ⭐ VERY IMPORTANT → block old notifications
+    localStorage.setItem(
+      "notificationsClearedAt",
+      new Date().toISOString()
+    )
+
   }
 
   const removeSingleNotification = async (index) => {
 
     const message = notifications[index]
 
-    // mark as removed
-    setRemovedNotifications(prev => [...prev, message])
+    // ⭐ save removed message in localStorage
+    const removed = JSON.parse(localStorage.getItem("removedNotifications") || "[]")
 
-    await supabase
-      .from("notifications")
-      .delete()
-      .eq("message", message)
+    if (!removed.includes(message)) {
+      removed.push(message)
+      localStorage.setItem("removedNotifications", JSON.stringify(removed))
+    }
 
     setNotifications(prev =>
       prev.filter((_, i) => i !== index)
@@ -481,6 +547,35 @@ function AdminDashboard() {
     }
 
     setDbSize(data)
+
+  }
+  const fetchTableUsage = async () => {
+
+    const tables = ["students", "trainers", "batches", "courses"]
+
+    const usage = []
+
+    for (let table of tables) {
+
+      const { count } = await supabase
+        .from(table)
+        .select("*", { count: "exact", head: true })
+
+      usage.push({
+        table,
+        count: count || 0
+      })
+
+    }
+
+    const total = usage.reduce((s, t) => s + t.count, 0)
+
+    const finalUsage = usage.map(t => ({
+      ...t,
+      percent: total === 0 ? 0 : (t.count / total) * 100
+    }))
+
+    setTableUsage(finalUsage)
 
   }
 
@@ -764,6 +859,29 @@ function AdminDashboard() {
               <p>
                 {(dbSize / 1024 / 1024).toFixed(2)} MB / 500 MB used
               </p>
+              <div className="table-usage">
+                <h4>Table Usage</h4>
+
+                {tableUsage.map((t, i) => (
+                  <div key={i} className="table-usage-row">
+
+                    <span className="table-name">{t.table}</span>
+
+                    <div className="table-bar">
+                      <div
+                        className="table-fill"
+                        style={{ width: `${t.percent}%` }}
+                      />
+                    </div>
+
+                    <span className="table-percent">
+                      {t.percent.toFixed(0)}%
+                    </span>
+
+                  </div>
+                ))}
+
+              </div>
 
             </div>
 

@@ -3,27 +3,24 @@ import { useNavigate } from "react-router-dom"
 import { supabase } from "../../services/supabase"
 import "./AddBatch.css"
 
+
 function AddBatch() {
   const navigate = useNavigate()
   const [batchName, setBatchName] = useState("")
-  const [batchTrainer, setBatchTrainer] = useState("")
-  const [batchTime, setBatchTime] = useState("")
+
+  const [hour, setHour] = useState("")
+  const [minute, setMinute] = useState("")
+  const [ampm, setAmpm] = useState("")
   const [batchDays, setBatchDays] = useState([])
   const [branches, setBranches] = useState([])
   const [batchBranch, setBatchBranch] = useState("")
   const [message, setMessage] = useState("")
-  const [trainers, setTrainers] = useState([])
+
   const [batchesList, setBatchesList] = useState([])
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedBatchId, setSelectedBatchId] = useState(null)
 
-  const fetchTrainers = async () => {
-    const { data, error } = await supabase
-      .from("trainers")
-      .select("*")
 
-    if (!error) setTrainers(data)
-  }
   const fetchBranches = async () => {
     const { data, error } = await supabase
       .from("branches")
@@ -33,7 +30,7 @@ function AddBatch() {
   }
 
   useEffect(() => {
-    fetchTrainers()
+
     fetchBranches()
     fetchBatchesList()   // ⭐ ADD THIS
   }, [])
@@ -63,10 +60,14 @@ function AddBatch() {
 
   const addBatch = async () => {
 
-    if (!batchName || !batchTrainer || !batchTime) {
+    if (!batchName || !batchBranch || !hour || !minute || !ampm) {
       alert("Fill all fields")
       return
     }
+
+    const finalTime = `${hour}:${minute} ${ampm}`
+
+
 
     const { error } = await supabase
       .from("batches")
@@ -74,25 +75,26 @@ function AddBatch() {
         {
           name: batchName,
           branch: batchBranch,
-          trainer: batchTrainer,
-          timing: batchTime,
+          timing: finalTime,
           days: batchDays.join(", ")
         }
       ])
+
     if (error) {
       console.error(error)
     } else {
-
 
       setMessage("✅ Batch created successfully")
 
       setBatchName("")
       setBatchTrainer("")
-      setBatchTime("")
       setBatchDays([])
       setBatchBranch("")
-      fetchBatchesList()
+      setHour("")
+      setMinute("")
+      setAmpm("")
 
+      fetchBatchesList()
     }
 
   }
@@ -158,28 +160,37 @@ function AddBatch() {
             ))}
           </select>
 
-          <label>Assign Trainer</label>
-          <select
-            value={batchTrainer}
-            onChange={(e) => setBatchTrainer(e.target.value)}
-          >
-            <option value="">Select Trainer</option>
 
-            {trainers.map((trainer) => (
-              <option key={trainer.id} value={trainer.name}>
-                {trainer.name}
-              </option>
-            ))}
-
-          </select>
 
           <label>Batch Time</label>
-          <input
-            type="time"
-            value={batchTime}
-            onChange={(e) => setBatchTime(e.target.value)}
-          />
 
+          <div className="time-row">
+
+            <select value={hour} onChange={(e) => setHour(e.target.value)}>
+              <option value="">HH</option>
+              {[...Array(12)].map((_, i) => {
+                const h = (i + 1).toString().padStart(2, "0")
+                return <option key={h}>{h}</option>
+              })}
+            </select>
+
+            <span className="colon">:</span>
+
+            <select value={minute} onChange={(e) => setMinute(e.target.value)}>
+              <option value="">MM</option>
+              {[...Array(60)].map((_, i) => {
+                const m = i.toString().padStart(2, "0")
+                return <option key={m}>{m}</option>
+              })}
+            </select>
+
+            <select value={ampm} onChange={(e) => setAmpm(e.target.value)}>
+              <option value="">AM/PM</option>
+              <option>AM</option>
+              <option>PM</option>
+            </select>
+
+          </div>
           <label>Days</label>
 
           <div className="days-select">

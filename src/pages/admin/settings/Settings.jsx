@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { supabase } from "../../../services/supabase"
 import Cropper from "react-easy-crop"
 
@@ -7,7 +8,7 @@ import "./Settings.css"
 
 function Settings() {
 
-
+  const navigate = useNavigate()   // ⭐⭐⭐ ADD THIS LINE
   const [admin, setAdmin] = useState({
     email: "",
     password: "",
@@ -16,8 +17,10 @@ function Settings() {
   const [profileImage, setProfileImage] = useState(null)
   const [previewImage, setPreviewImage] = useState("")
   const [adminPhoto, setAdminPhoto] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [passwordError, setPasswordError] = useState("")
+  const [systemMessage, setSystemMessage] = useState("")
 
-  const [verifiedPassword, setVerifiedPassword] = useState(false)
 
 
   const [crop, setCrop] = useState({ x: 0, y: 0 })
@@ -30,11 +33,15 @@ function Settings() {
   const [showPasswordPopup, setShowPasswordPopup] = useState(false)
   const [showEmailPopup, setShowEmailPopup] = useState(false)
   const [showProfilePopup, setShowProfilePopup] = useState(false)
-  const [passwordEmail, setPasswordEmail] = useState("")
-  const [currentEmail, setCurrentEmail] = useState("")
-  const handleLogout = () => {
+
+  const handleLogout = async () => {
+
+    await supabase.auth.signOut()
+
     localStorage.removeItem("isAdminLoggedIn")
-    window.location.href = "/admin/login"
+
+    navigate("/admin/login", { replace: true })
+
   }
   const sendVerificationLink = async (email) => {
 
@@ -65,39 +72,48 @@ function Settings() {
       return
     }
 
-    // ✅ Update auth email
-    const { error } = await supabase.auth.updateUser({
-      email: newEmail
-    })
+    const { error } = await supabase.auth.updateUser(
+      { email: newEmail },
+      {
+        emailRedirectTo: window.location.origin + "/admin/settings"
+      }
+    )
 
     if (error) {
       alert(error.message)
       return
     }
 
-    // ✅ get user id
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData.user.id
+    setShowEmailPopup(false)
 
-    // ✅ update profiles table
-    await supabase
-      .from("profiles")
-      .update({ email: newEmail })
-      .eq("id", userId)
+    setSystemMessage("📩 Verification link sent to new email")
 
-    alert("Email updated successfully. Please login again.")
+    setTimeout(() => {
+      setSystemMessage("")
+    }, 3000)
 
+    // ⭐ logout immediately (clean auth reset)
     await supabase.auth.signOut()
+    localStorage.removeItem("isAdminLoggedIn")
 
-    window.location.href = "/admin/login"
+    navigate("/admin/login", { replace: true })
 
   }
 
   const updatePassword = async () => {
 
-    // 🔒 password validation
+    if (!newPassword || !confirmPassword) {
+      setPasswordError("Please fill both password fields")
+      return
+    }
+
     if (newPassword.length < 6) {
-      alert("Password must be at least 6 characters")
+      setPasswordError("Password must be at least 6 characters")
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Passwords do not match")
       return
     }
 
@@ -105,15 +121,24 @@ function Settings() {
       password: newPassword
     })
 
-    if (!error) {
+    if (error) {
+      setPasswordError(error.message)
+      return
+    }
 
-      alert("Password updated successfully")
+    setSystemMessage("🔐 Password updated successfully")
+
+    setTimeout(() => {
+      setSystemMessage("")
+    }, 3000)
+    setTimeout(async () => {
 
       await supabase.auth.signOut()
+      localStorage.removeItem("isAdminLoggedIn")
 
-      window.location.href = "/admin/login"
+      navigate("/admin/login", { replace: true })
 
-    }
+    }, 2000)
 
   }
   const updateCredentials = async () => {
@@ -171,7 +196,11 @@ function Settings() {
         profile_photo: data.secure_url
       })
 
-    alert("Profile picture updated successfully")
+    setSystemMessage("✅ Profile picture updated successfully")
+
+    setTimeout(() => {
+      setSystemMessage("")
+    }, 3000)
     setShowProfilePopup(false)
     setAdminPhoto(data.secure_url)
 
@@ -190,38 +219,21 @@ function Settings() {
     const userId = userData.user.id
     const authEmail = userData.user.email
 
-    const { data } = await supabase
+    const { data: profile } = await supabase
       .from("profiles")
-      .select("email, profile_photo")
+      .select("profile_photo")
       .eq("id", userId)
       .single()
 
-    // ✅ IF EMAIL IS NULL → SAVE AUTH EMAIL
-    if (!data?.email) {
+    // ⭐ ALWAYS TAKE EMAIL FROM AUTH
+    setAdmin({
+      email: authEmail,
+      password: ""
+    })
 
-      await supabase
-        .from("profiles")
-        .update({ email: authEmail })
-        .eq("id", userId)
-
-      setAdmin({
-        email: authEmail,
-        password: ""
-      })
-
-    } else {
-
-      setAdmin({
-        email: data.email,
-        password: ""
-      })
-
+    if (profile?.profile_photo) {
+      setAdminPhoto(profile.profile_photo)
     }
-
-    if (data?.profile_photo) {
-      setAdminPhoto(data.profile_photo)
-    }
-
   }
   const handleCropSave = async () => {
 
@@ -258,40 +270,14 @@ function Settings() {
       setShowProfilePopup(true)
     })
   }
-  const updateEmailInProfile = async () => {
 
-    if (!newEmail) {
-      alert("Please enter email")
-      return
-    }
-
-    const { data: userData } = await supabase.auth.getUser()
-
-    const userId = userData.user.id
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({ email: newEmail })
-      .eq("id", userId)
-
-    if (!error) {
-
-      alert("Email updated successfully")
-
-      setAdmin({
-        ...admin,
-        email: newEmail
-      })
-
-      setShowEmailPopup(false)
-
-    } else {
-      alert(error.message)
-    }
-
-  }
   return (
     <div className="settings-page">
+      {systemMessage && (
+        <div className="system-message">
+          {systemMessage}
+        </div>
+      )}
       <div className="resume-settings">
 
         {/* LEFT SIDE PROFILE */}
@@ -372,7 +358,7 @@ function Settings() {
 
             <button
               className="save-btn"
-              onClick={updateEmailInProfile}
+              onClick={updateEmailProper}
             >
               Save
             </button>
@@ -394,48 +380,37 @@ function Settings() {
             <h3>Update Password</h3>
 
             <input
-              placeholder="Enter Your Email"
-              value={passwordEmail}
-              onChange={(e) => setPasswordEmail(e.target.value)}
+              type="password"
+              placeholder="Enter New Password"
+              value={newPassword}
+              onChange={(e) => {
+                setNewPassword(e.target.value)
+                setPasswordError("")
+              }}
             />
-
-            <button
-              onClick={() => sendOTP(passwordEmail)}
-              className="save-btn"
-            >
-              Send OTP
-            </button>
 
             <input
-              placeholder="Enter OTP"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
+              type="password"
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value)
+                setPasswordError("")
+              }}
             />
 
+            {passwordError && (
+              <p style={{ color: "red", fontSize: 13, marginBottom: 10 }}>
+                {passwordError}
+              </p>
+            )}
+
             <button
-              onClick={verifyOTPPassword}
+              onClick={updatePassword}
               className="save-btn"
             >
-              Verify OTP
+              Update Password
             </button>
-
-            {verifiedPassword && (
-              <>
-                <input
-                  type="password"
-                  placeholder="Enter New Password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                />
-
-                <button
-                  onClick={updatePassword}
-                  className="save-btn"
-                >
-                  Update Password
-                </button>
-              </>
-            )}
 
             <button
               className="cancel-btn"

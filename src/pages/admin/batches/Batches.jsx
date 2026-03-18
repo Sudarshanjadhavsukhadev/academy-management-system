@@ -35,6 +35,7 @@ ChartJS.register(
 function Batches({ searchStudent }) {
   const navigate = useNavigate()
   const [batches, setBatches] = useState([])
+  const [trainerName, setTrainerName] = useState("")
   const [selectedBranch, setSelectedBranch] = useState("")
   const [branches, setBranches] = useState([])
 
@@ -53,7 +54,7 @@ function Batches({ searchStudent }) {
   const [activeTab, setActiveTab] = useState("details")
   const [trainers, setTrainers] = useState([])
   const [courses, setCourses] = useState([])
-  const [selectedTrainer, setSelectedTrainer] = useState("")
+
   const [batchTrainer, setBatchTrainer] = useState("")
   const [batchTime, setBatchTime] = useState("")
   const [studentStrength, setStudentStrength] = useState(0)
@@ -103,6 +104,19 @@ function Batches({ searchStudent }) {
     }
   }
 
+  const fetchTrainerBatches = async (name) => {
+
+    const { data, error } = await supabase
+      .from("batches")
+      .select("*")
+      .eq("trainer", name)
+
+    if (!error) {
+      setBatches(data)
+    }
+
+  }
+
 
   const fetchStudentStrength = async (batchName) => {
     const { count, error } = await supabase
@@ -122,7 +136,7 @@ function Batches({ searchStudent }) {
       .from("students")
       .select("*")
       .eq("batch", batchName)
-
+      .eq("branch", selectedBatch.branch)
     if (error) {
       console.error(error)
       return
@@ -142,7 +156,7 @@ function Batches({ searchStudent }) {
       // if today's date passed the due date and payment exists
 
     }
-   setBatchStudents(data)
+    setBatchStudents(data)
   }
   const fetchLastAttendance = async (batchName) => {
 
@@ -217,18 +231,20 @@ function Batches({ searchStudent }) {
     }
   }
   const addBatch = async () => {
-    if (!batchName || !batchCourse || !batchBranch) {
+
+    if (!batchName || !batchCourse || !batchBranch || !batchTrainer) {
       alert("Please fill all fields")
       return
     }
 
+    // ⭐ insert batch first
     const { error } = await supabase
       .from("batches")
       .insert([
         {
           name: batchName,
           course: batchCourse,
-          branch: batchBranch,
+          branch_id: String(batchBranch),
           trainer: batchTrainer,
           timing: batchTime,
           days: batchDays.join(", ")
@@ -237,15 +253,40 @@ function Batches({ searchStudent }) {
 
     if (error) {
       console.error(error)
-    } else {
-      setBatchName("")
-      setBatchCourse("")
-      setBatchBranch("")
-      setBatchTrainer("")
-      setBatchTime("")
-      setShowAddBatchPopup(false)
-      fetchBatches(batchBranch)
+      return
     }
+
+    // ⭐ VERY IMPORTANT → get trainer REAL ID
+    const { data: trainerRow } = await supabase
+      .from("trainers")
+      .select("id")
+      .eq("name", batchTrainer)
+      .single()
+
+    if (trainerRow) {
+
+      await supabase.from("trainer_batches").insert([
+        {
+          trainer_id: trainerRow.id,
+          batch_name: batchName
+        }
+      ])
+
+    }
+
+    // reset
+    setBatchName("")
+    setBatchCourse("")
+    setBatchBranch("")
+    setBatchTrainer("")
+    setBatchTime("")
+    setBatchDays([])
+    setShowAddBatchPopup(false)
+
+    setSelectedBranch(batchBranch)
+    fetchBatches(batchBranch)
+    alert("Batch Created & Trainer Assigned ✅")
+
   }
   const updateBatch = async () => {
 
@@ -254,7 +295,7 @@ function Batches({ searchStudent }) {
       .update({
         name: batchName,
         course: batchCourse,
-        branch: batchBranch,
+
         trainer: batchTrainer,
         timing: batchTime,
         days: batchDays.join(", ")
@@ -275,7 +316,7 @@ function Batches({ searchStudent }) {
         ...selectedBatch,
         name: batchName,
         course: batchCourse,
-        branch: batchBranch,
+        branch_id: batchBranch,
         trainer: batchTrainer,
         timing: batchTime,
         days: batchDays.join(", ")
@@ -298,39 +339,47 @@ function Batches({ searchStudent }) {
       fetchBatches(batchBranch || selectedBranch)
     }
   }
-  const assignTrainer = async () => {
-    if (!selectedTrainer || !selectedBatch) {
-      alert("Select trainer")
-      return
-    }
 
-    const { error } = await supabase
-      .from("batches")
-      .update({ trainer: selectedTrainer })
-      .eq("id", selectedBatch.id)
-
-    if (error) {
-      console.error(error)
-    } else {
-
-      setSelectedBatch({
-        ...selectedBatch,
-        trainer: selectedTrainer
-      })
-
-      fetchBatches(selectedBranch)
-
-      alert("Trainer Assigned")
-    }
-  }
   useEffect(() => {
     fetchBranches()
     fetchTrainers()
     fetchCourses()
   }, [])
   useEffect(() => {
-    setSelectedTrainer("")
-  }, [selectedBatch])
+
+    const getTrainer = async () => {
+
+      const { data: userData } = await supabase.auth.getUser()
+
+      if (!userData?.user) return
+
+      const email = userData.user.email
+
+      const { data, error } = await supabase
+        .from("trainers")
+        .select("name")
+        .eq("email", email)
+
+      if (error) {
+        console.log(error)
+        return
+      }
+
+      if (data && data.length > 0) {
+
+        setTrainerName(data[0].name)
+
+        await fetchTrainerBatches(data[0].name)
+
+        setShowPopup(false)
+
+      }
+    }
+
+    getTrainer()
+
+  }, [])
+
   useEffect(() => {
 
     if (!selectedBatch) return
@@ -348,12 +397,18 @@ function Batches({ searchStudent }) {
 
     if (!searchStudent) return
 
-    setShowPopup(false)   // 🔥 hide branch popup
-    setSelectedBranch(searchStudent.branch)
+    const branchRow = branches.find(
+      b => b.name === searchStudent.branch
+    )
 
-    fetchBatches(searchStudent.branch)
+    if (!branchRow) return
 
-  }, [searchStudent])
+    setShowPopup(false)
+    setSelectedBranch(branchRow.id)
+
+    fetchBatches(branchRow.id)
+
+  }, [searchStudent, branches])
 
   useEffect(() => {
 
@@ -369,18 +424,23 @@ function Batches({ searchStudent }) {
     }
 
   }, [batches])
-  const fetchBatches = async (branch) => {
+  const fetchBatches = async (branchId) => {
+
+    const branchRow = branches.find(b => b.id === branchId)
+
+    if (!branchRow) return
+
     const { data, error } = await supabase
       .from("batches")
       .select("*")
-      .eq("branch", branch)
-      .order("id", { ascending: true })
+      .eq("branch", branchRow.name)
 
     if (error) {
-      console.error(error)
-    } else {
-      setBatches(data)
+      console.log(error)
+      return
     }
+
+    setBatches(data)
   }
   const toggleDay = (day) => {
 
@@ -394,14 +454,16 @@ function Batches({ searchStudent }) {
 
   const toggleStudentStatus = async (student) => {
 
+    const status = student.status?.toLowerCase().trim()
+
     // ACTIVE → DISABLE CONFIRM
-    if (student.status === "active") {
+    if (status === "active") {
       setConfirmDisableStudent(student)
       return
     }
 
     // DISABLED → ACTIVE CONFIRM
-    if (student.status === "disabled") {
+    if (status === "disabled") {
       setConfirmActiveStudent(student)
       return
     }
@@ -590,6 +652,37 @@ function Batches({ searchStudent }) {
 
   }
 
+  const formatDate = (date) => {
+
+    if (!date) return "-"
+
+    const d = new Date(date)
+
+    const day = String(d.getDate()).padStart(2, "0")
+    const month = String(d.getMonth() + 1).padStart(2, "0")
+    const year = d.getFullYear()
+
+    return `${day}/${month}/${year}`
+
+  }
+
+  const getNextDueDate = (student) => {
+
+    // ⭐ if never paid → don't show due
+    if (!student.last_payment_date) return null
+
+    const lastPaid = new Date(student.last_payment_date)
+
+    const nextDue = new Date(
+      lastPaid.getFullYear(),
+      lastPaid.getMonth() + 1,
+      lastPaid.getDate()
+    )
+
+    return nextDue
+
+  }
+
   return (
     <div className="batches-page">
 
@@ -626,12 +719,12 @@ function Batches({ searchStudent }) {
             {branches.map(branch => (
               <button
                 key={branch.id}
-                className={`batch-pill ${selectedBranch === branch.name ? "active-batch" : ""
-                  }`}
+                className={`batch-pill ${selectedBranch === branch.id ? "active-batch" : ""}`}
+
                 onClick={() => {
-                  setSelectedBranch(branch.name)
-                  setSelectedBatch(null)   // ⭐ reset batch
-                  fetchBatches(branch.name)
+                  setSelectedBranch(branch.id)
+                  setSelectedBatch(null)
+                  fetchBatches(branch.id)
                 }}
               >
                 {branch.name}
@@ -693,18 +786,13 @@ function Batches({ searchStudent }) {
                 Attendance
               </button>
 
-              <button
-                className={activeTab === "trainer" ? "tab-btn active-tab" : "tab-btn"}
-                onClick={() => setActiveTab("trainer")}
-              >
-                Assign Trainer
-              </button>
+
               <button
                 onClick={() => {
                   setIsEditing(true)
                   setBatchName(selectedBatch.name)
                   setBatchCourse(selectedBatch.course)
-                  setBatchBranch(selectedBatch.branch)
+                  setBatchBranch(selectedBatch.branch_id)
                   setBatchTrainer(selectedBatch.trainer)
                   setBatchTime(selectedBatch.timing)
                   setBatchDays(selectedBatch.days?.split(", ") || [])
@@ -735,33 +823,7 @@ function Batches({ searchStudent }) {
             </>
           )}
 
-          {activeTab === "trainer" && (
-            <div>
 
-              <h3>Assign Trainer</h3>
-
-              <select
-                value={selectedTrainer}
-                onChange={(e) => setSelectedTrainer(e.target.value)}
-                style={{ padding: "10px", marginTop: "10px" }}
-              >
-                <option value="">Select Trainer</option>
-
-                {trainers.map((trainer) => (
-                  <option key={trainer.id} value={trainer.name}>
-                    {trainer.name}
-                  </option>
-                ))}
-              </select>
-
-              <div style={{ marginTop: "15px" }}>
-                <button onClick={assignTrainer}>
-                  Assign Trainer
-                </button>
-              </div>
-
-            </div>
-          )}
           {activeTab === "students" && (
             <div className="students-list">
 
@@ -793,21 +855,66 @@ function Batches({ searchStudent }) {
                         className={
                           student.status === "disabled"
                             ? "disabled-row"
-                            : student.next_due_date &&
-                              new Date(student.next_due_date) >
-                              new Date(
-                                new Date(student.last_payment_date).setMonth(
-                                  new Date(student.last_payment_date).getMonth() + 1
+                            : (() => {
+
+                              const today = new Date()
+                              today.setHours(0, 0, 0, 0)
+
+                              // ⭐⭐⭐ CASE 1 → NEVER PAID
+                              if (!student.last_payment_date && student.join_date) {
+
+                                const join = new Date(student.join_date)
+
+                                // ⭐ CURRENT MONTH DUE DAY
+                                const due = new Date(
+                                  today.getFullYear(),
+                                  today.getMonth(),
+                                  join.getDate()
                                 )
-                              )
-                              ? "advance-row"
-                              : ""
+
+                                // ⭐ if today before due → not overdue
+                                if (today < due) return ""
+
+                                // ⭐ grace from due
+                                const graceEnd = new Date(due)
+                                graceEnd.setDate(graceEnd.getDate() + 15)
+
+                                if (today > graceEnd) {
+                                  return "overdue-row"
+                                }
+
+                                return ""
+                              }
+
+                              // ⭐⭐⭐ CASE 2 → HAS PAID → normal due logic
+                              const due = getNextDueDate(student)
+
+                              if (!due) return ""
+
+                              due.setHours(0, 0, 0, 0)
+
+                              // ⭐ ADD 15 DAYS GRACE
+                              const graceEnd = new Date(due)
+                              graceEnd.setDate(graceEnd.getDate() + 15)
+
+                              if (today > graceEnd) {
+                                return "overdue-row"   // 🔴 only after grace
+                              }
+
+                              const diff =
+                                (due - today) / (1000 * 60 * 60 * 24)
+
+                              if (diff <= 3 && diff >= 0) return "due-soon-row"
+
+                              return ""
+
+                            })()
                         }
                       >
 
                         <td>{student.name}</td>
 
-                        <td>{student.join_date || "-"}</td>
+                        <td>{formatDate(student.join_date)}</td>
 
                         <td>{student.fees || "-"}</td>
 
@@ -828,13 +935,14 @@ function Batches({ searchStudent }) {
                         </td>
                         <td>
                           {student.last_payment_date
-                            ? new Date(student.last_payment_date).toLocaleDateString()
+                            ? formatDate(student.last_payment_date)
                             : "-"}
                         </td>
                         <td>
-                          {student.next_due_date
-                            ? new Date(student.next_due_date).toLocaleDateString()
-                            : "-"}
+                          {student.last_payment_date
+                            ? formatDate(getNextDueDate(student))
+                            : "-"
+                          }
                         </td>
 
 
@@ -868,14 +976,18 @@ function Batches({ searchStudent }) {
 
                         </td>
                         <td>
+                          {(() => {
+                            const status = student.status?.toLowerCase().trim()
 
-                          <button
-                            className={student.status === "active" ? "active-btn" : "disable-btn"}
-                            onClick={() => toggleStudentStatus(student)}
-                          >
-                            {student.status === "active" ? "Active" : "Disabled"}
-                          </button>
-
+                            return (
+                              <button
+                                className={status === "active" ? "active-btn" : "disable-btn"}
+                                onClick={() => toggleStudentStatus(student)}
+                              >
+                                {status === "active" ? "Active" : "Disabled"}
+                              </button>
+                            )
+                          })()}
                         </td>
 
                       </tr>
@@ -1009,8 +1121,8 @@ function Batches({ searchStudent }) {
                         key={branch.id}
                         className="popup-branch-btn"
                         onClick={() => {
-                          setSelectedBranch(branch.name)
-                          fetchBatches(branch.name)
+                          setSelectedBranch(branch.id)
+                          fetchBatches(branch.id)
                           setPopupStep(2)
                         }}
                       >
@@ -1214,7 +1326,7 @@ function Batches({ searchStudent }) {
                 >
                   <option value="">Select Branch</option>
                   {branches.map((branch) => (
-                    <option key={branch.id} value={branch.name}>
+                    <option key={branch.id} value={branch.id}>
                       {branch.name}
                     </option>
                   ))}
@@ -1309,7 +1421,7 @@ function Batches({ searchStudent }) {
                   className="batch-input"
                 >
                   {branches.map((branch) => (
-                    <option key={branch.id} value={branch.name}>
+                    <option key={branch.id} value={branch.id}>
                       {branch.name}
                     </option>
                   ))}
@@ -1404,28 +1516,24 @@ function Batches({ searchStudent }) {
 
               <button
                 className="add-btn"
+
+
+
                 onClick={async () => {
-
-                  const selectedDate = new Date(paymentDate)
-
-                  const nextDue = new Date(selectedDate)
-                  nextDue.setMonth(nextDue.getMonth() + monthsPaid)
+                  const selectedPaymentDate = new Date(paymentDate)
 
                   const { error } = await supabase
                     .from("students")
                     .update({
-                      last_payment_date: selectedDate.toISOString().split("T")[0],
-                      next_due_date: nextDue.toISOString().split("T")[0],
+                      last_payment_date: selectedPaymentDate.toISOString().split("T")[0],
+
                       fees_status: "Paid"
                     })
                     .eq("id", paymentStudent.id)
 
                   if (!error) {
-
                     fetchBatchStudents(selectedBatch.name)
-
                     setPaymentStudent(null)
-
                   }
 
                 }}
@@ -1444,428 +1552,443 @@ function Batches({ searchStudent }) {
 
           </div>
         </div>
-      )}
-      {messagePopup && (
-        <div className="message-popup">
-          <div className="message-box">
+      )
+      }
+      {
+        messagePopup && (
+          <div className="message-popup">
+            <div className="message-box">
 
-            <p>{messagePopup}</p>
+              <p>{messagePopup}</p>
 
-            <button onClick={() => setMessagePopup("")}>
-              OK
+              <button onClick={() => setMessagePopup("")}>
+                OK
+              </button>
+
+            </div>
+          </div>
+        )
+      }
+
+      {
+        editingStudent && (
+          <div className="profile-overlay">
+            <div className="profile-edit-card">
+
+              <h2 className="profile-title">Edit Student Profile</h2>
+
+              <div className="profile-edit-body">
+
+                {/* LEFT PHOTO */}
+                <div className="profile-photo-section">
+
+                  <img
+                    src={editingStudent.profile_photo}
+                    className="profile-photo-big"
+                  />
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    id="editPhotoUpload"
+                    onChange={(e) => {
+
+                      const file = e.target.files[0]
+                      if (!file) return
+
+                      const reader = new FileReader()
+
+                      reader.onload = () => {
+                        setEditImageSrc(reader.result)
+                        setShowEditCropModal(true)
+                      }
+
+                      reader.readAsDataURL(file)
+
+                    }}
+                  />
+
+                  <label htmlFor="editPhotoUpload" className="change-photo-btn">
+                    Change Photo
+                  </label>
+
+                </div>
+
+                {/* RIGHT FORM */}
+                <div className="profile-form-grid">
+                  <div className="form-group">
+                    <label>Name</label>
+                    <input
+                      value={editingStudent.name || ""}
+                      onChange={(e) =>
+                        setEditingStudent({ ...editingStudent, name: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Activity</label>
+
+                    <select
+                      onChange={(e) => {
+                        const value = e.target.value
+
+                        if (!value) return
+
+                        if (!editingStudent.activity?.includes(value)) {
+                          setEditingStudent({
+                            ...editingStudent,
+                            activity: [...(editingStudent.activity || []), value],
+                          })
+                        }
+
+                        e.target.value = ""
+                      }}
+                    >
+                      <option value="">Select Activity</option>
+
+                      {courses.map((course) => (
+                        <option key={course.id} value={course.name}>
+                          {course.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="selected-activities">
+                      {(editingStudent.activity || []).map((act) => (
+                        <div key={act} className="activity-chip">
+                          {act}
+                          <span
+                            onClick={() =>
+                              setEditingStudent({
+                                ...editingStudent,
+                                activity: editingStudent.activity.filter((a) => a !== act),
+                              })
+                            }
+                          >
+                            ❌
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label>Branch</label>
+                    <input
+                      value={editingStudent.branch || ""}
+                      onChange={(e) =>
+                        setEditingStudent({ ...editingStudent, branch: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Batch</label>
+                    <input
+                      value={editingStudent.batch || ""}
+                      onChange={(e) =>
+                        setEditingStudent({ ...editingStudent, batch: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Joining Date</label>
+                    <input
+                      type="date"
+                      value={editingStudent.join_date || ""}
+                      onChange={(e) =>
+                        setEditingStudent({ ...editingStudent, join_date: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>WhatsApp Number</label>
+                    <input
+                      value={editingStudent["Whatsapp Number"] || ""}
+                      onChange={(e) =>
+                        setEditingStudent({
+                          ...editingStudent,
+                          ["Whatsapp Number"]: e.target.value
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Fees</label>
+                    <input
+                      type="number"
+                      value={editingStudent.fees || ""}
+                      onChange={(e) =>
+                        setEditingStudent({ ...editingStudent, fees: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Date of Birth</label>
+                    <input
+                      type="date"
+                      value={editingStudent.dob || ""}
+                      onChange={(e) =>
+                        setEditingStudent({ ...editingStudent, dob: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Reference</label>
+                    <input
+                      value={editingStudent.reference || ""}
+                      onChange={(e) =>
+                        setEditingStudent({ ...editingStudent, reference: e.target.value })
+                      }
+                    />
+                  </div>
+
+
+
+
+
+
+                </div>
+
+              </div>
+
+              <div className="profile-actions">
+
+                <button
+                  className="save-profile-btn"
+                  onClick={async () => {
+
+                    const { error } = await supabase
+                      .from("students")
+                      .update({
+                        name: editingStudent.name,
+                        activity: editingStudent.activity,
+                        branch: editingStudent.branch,
+                        batch: editingStudent.batch,
+                        join_date: editingStudent.join_date,
+                        fees: editingStudent.fees,
+                        dob: editingStudent.dob,
+                        reference: editingStudent.reference,
+                        profile_photo: editingStudent.profile_photo,
+                        ["Whatsapp Number"]: editingStudent["Whatsapp Number"]
+                      })
+                      .eq("id", editingStudent.id)
+
+                    if (!error) {
+                      fetchBatchStudents(selectedBatch.name)
+                      setEditingStudent(null)
+                    }
+
+                  }}
+                >
+                  Save Changes
+                </button>
+
+                <button
+                  className="cancel-profile-btn"
+                  onClick={() => setEditingStudent(null)}
+                >
+                  Cancel
+                </button>
+
+              </div>
+
+            </div>
+          </div>
+        )
+      }
+      {
+        confirmDisableStudent && (
+          <div className="branch-popup-overlay">
+            <div className="branch-popup">
+
+              <h3 style={{ marginBottom: "10px" }}>
+                Disable Student
+              </h3>
+
+              <p style={{ marginBottom: "20px", color: "#555" }}>
+                Are you sure you want to disable
+                <strong> {confirmDisableStudent.name}</strong> ?
+              </p>
+
+              <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+
+                <button
+                  style={{
+                    background: "#ef4444",
+                    color: "white",
+                    padding: "10px 18px",
+                    borderRadius: "8px",
+                    border: "none"
+                  }}
+                  onClick={async () => {
+
+                    const { error } = await supabase
+                      .from("students")
+                      .update({
+                        status: "disabled",
+                        last_payment_date: null,
+                        fees_status: null
+                      })
+                      .eq("id", confirmDisableStudent.id)
+
+                    if (!error) {
+                      fetchBatchStudents(selectedBatch.name)
+                    }
+
+                    setConfirmDisableStudent(null)
+
+                  }}
+                >
+                  Yes Disable
+                </button>
+
+                <button
+                  style={{
+                    background: "#e5e7eb",
+                    padding: "10px 18px",
+                    borderRadius: "8px",
+                    border: "none"
+                  }}
+                  onClick={() => setConfirmDisableStudent(null)}
+                >
+                  Cancel
+                </button>
+
+              </div>
+
+            </div>
+          </div>
+        )
+      }
+      {
+        showEditCropModal && (
+
+          <div className="crop-modal">
+
+            <div className="crop-container">
+
+              <Cropper
+                image={editImageSrc}
+                crop={editCrop}
+                zoom={editZoom}
+                aspect={1}
+                onCropChange={setEditCrop}
+                onZoomChange={setEditZoom}
+                onCropComplete={(area, pixels) =>
+                  setEditCroppedAreaPixels(pixels)
+                }
+              />
+
+            </div>
+
+            <button
+              onClick={async () => {
+
+                setPhotoUploading(true)
+
+                const croppedBlob = await getCroppedImg(
+                  editImageSrc,
+                  editCroppedAreaPixels
+                )
+
+                const formDataUpload = new FormData()
+                formDataUpload.append("file", croppedBlob)
+                formDataUpload.append("upload_preset", "dtjyggwjd")
+
+                const res = await fetch(
+                  "https://api.cloudinary.com/v1_1/dtjyggwjd/image/upload",
+                  {
+                    method: "POST",
+                    body: formDataUpload
+                  }
+                )
+
+                const data = await res.json()
+
+                if (data.secure_url) {
+
+                  setEditingStudent({
+                    ...editingStudent,
+                    profile_photo: data.secure_url
+                  })
+
+                }
+
+                setPhotoUploading(false)
+                setShowEditCropModal(false)
+
+              }}
+            >
+              {photoUploading ? "Uploading..." : "Crop & Upload"}
             </button>
 
           </div>
-        </div>
-      )}
 
-      {editingStudent && (
-        <div className="profile-overlay">
-          <div className="profile-edit-card">
+        )
+      }
+      {
+        confirmActiveStudent && (
+          <div className="branch-popup-overlay">
+            <div className="branch-popup">
 
-            <h2 className="profile-title">Edit Student Profile</h2>
+              <h3 style={{ marginBottom: "10px" }}>
+                Activate Student
+              </h3>
 
-            <div className="profile-edit-body">
+              <p style={{ marginBottom: "20px", color: "#555" }}>
+                Are you sure you want to activate
+                <strong> {confirmActiveStudent.name}</strong> ?
+              </p>
 
-              {/* LEFT PHOTO */}
-              <div className="profile-photo-section">
+              <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
 
-                <img
-                  src={editingStudent.profile_photo}
-                  className="profile-photo-big"
-                />
+                <button
+                  style={{
+                    background: "#22c55e",
+                    color: "white",
+                    padding: "10px 18px",
+                    borderRadius: "8px",
+                    border: "none"
+                  }}
+                  onClick={async () => {
 
-                <input
-                  type="file"
-                  accept="image/*"
-                  style={{ display: "none" }}
-                  id="editPhotoUpload"
-                  onChange={(e) => {
+                    const { error } = await supabase
+                      .from("students")
+                      .update({
+                        status: "active",
+                        join_date: new Date().toISOString().split("T")[0]
+                      })
+                      .eq("id", confirmActiveStudent.id)
 
-                    const file = e.target.files[0]
-                    if (!file) return
-
-                    const reader = new FileReader()
-
-                    reader.onload = () => {
-                      setEditImageSrc(reader.result)
-                      setShowEditCropModal(true)
+                    if (!error) {
+                      fetchBatchStudents(selectedBatch.name)
                     }
 
-                    reader.readAsDataURL(file)
+                    setConfirmActiveStudent(null)
 
                   }}
-                />
+                >
+                  Yes Activate
+                </button>
 
-                <label htmlFor="editPhotoUpload" className="change-photo-btn">
-                  Change Photo
-                </label>
-
-              </div>
-
-              {/* RIGHT FORM */}
-              <div className="profile-form-grid">
-                <div className="form-group">
-                  <label>Name</label>
-                  <input
-                    value={editingStudent.name || ""}
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, name: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Activity</label>
-
-                  <select
-                    onChange={(e) => {
-                      const value = e.target.value
-
-                      if (!value) return
-
-                      if (!editingStudent.activity?.includes(value)) {
-                        setEditingStudent({
-                          ...editingStudent,
-                          activity: [...(editingStudent.activity || []), value],
-                        })
-                      }
-
-                      e.target.value = ""
-                    }}
-                  >
-                    <option value="">Select Activity</option>
-
-                    {courses.map((course) => (
-                      <option key={course.id} value={course.name}>
-                        {course.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  <div className="selected-activities">
-                    {(editingStudent.activity || []).map((act) => (
-                      <div key={act} className="activity-chip">
-                        {act}
-                        <span
-                          onClick={() =>
-                            setEditingStudent({
-                              ...editingStudent,
-                              activity: editingStudent.activity.filter((a) => a !== act),
-                            })
-                          }
-                        >
-                          ❌
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label>Branch</label>
-                  <input
-                    value={editingStudent.branch || ""}
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, branch: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Batch</label>
-                  <input
-                    value={editingStudent.batch || ""}
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, batch: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Joining Date</label>
-                  <input
-                    type="date"
-                    value={editingStudent.join_date || ""}
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, join_date: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label>WhatsApp Number</label>
-                  <input
-                    value={editingStudent["Whatsapp Number"] || ""}
-                    onChange={(e) =>
-                      setEditingStudent({
-                        ...editingStudent,
-                        ["Whatsapp Number"]: e.target.value
-                      })
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Fees</label>
-                  <input
-                    type="number"
-                    value={editingStudent.fees || ""}
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, fees: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Date of Birth</label>
-                  <input
-                    type="date"
-                    value={editingStudent.dob || ""}
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, dob: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Reference</label>
-                  <input
-                    value={editingStudent.reference || ""}
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, reference: e.target.value })
-                    }
-                  />
-                </div>
-
-
-
-
-
+                <button
+                  style={{
+                    background: "#e5e7eb",
+                    padding: "10px 18px",
+                    borderRadius: "8px",
+                    border: "none"
+                  }}
+                  onClick={() => setConfirmActiveStudent(null)}
+                >
+                  Cancel
+                </button>
 
               </div>
 
             </div>
-
-            <div className="profile-actions">
-
-              <button
-                className="save-profile-btn"
-                onClick={async () => {
-
-                  const { error } = await supabase
-                    .from("students")
-                    .update({
-                      name: editingStudent.name,
-                      activity: editingStudent.activity,
-                      branch: editingStudent.branch,
-                      batch: editingStudent.batch,
-                      join_date: editingStudent.join_date,
-                      fees: editingStudent.fees,
-                      dob: editingStudent.dob,
-                      reference: editingStudent.reference,
-                      profile_photo: editingStudent.profile_photo,
-                      ["Whatsapp Number"]: editingStudent["Whatsapp Number"]
-                    })
-                    .eq("id", editingStudent.id)
-
-                  if (!error) {
-                    fetchBatchStudents(selectedBatch.name)
-                    setEditingStudent(null)
-                  }
-
-                }}
-              >
-                Save Changes
-              </button>
-
-              <button
-                className="cancel-profile-btn"
-                onClick={() => setEditingStudent(null)}
-              >
-                Cancel
-              </button>
-
-            </div>
-
           </div>
-        </div>
-      )}
-      {confirmDisableStudent && (
-        <div className="branch-popup-overlay">
-          <div className="branch-popup">
-
-            <h3 style={{ marginBottom: "10px" }}>
-              Disable Student
-            </h3>
-
-            <p style={{ marginBottom: "20px", color: "#555" }}>
-              Are you sure you want to disable
-              <strong> {confirmDisableStudent.name}</strong> ?
-            </p>
-
-            <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
-
-              <button
-                style={{
-                  background: "#ef4444",
-                  color: "white",
-                  padding: "10px 18px",
-                  borderRadius: "8px",
-                  border: "none"
-                }}
-                onClick={async () => {
-
-                  const { error } = await supabase
-                    .from("students")
-                    .update({ status: "disabled" })
-                    .eq("id", confirmDisableStudent.id)
-
-                  if (!error) {
-                    fetchBatchStudents(selectedBatch.name)
-                  }
-
-                  setConfirmDisableStudent(null)
-
-                }}
-              >
-                Yes Disable
-              </button>
-
-              <button
-                style={{
-                  background: "#e5e7eb",
-                  padding: "10px 18px",
-                  borderRadius: "8px",
-                  border: "none"
-                }}
-                onClick={() => setConfirmDisableStudent(null)}
-              >
-                Cancel
-              </button>
-
-            </div>
-
-          </div>
-        </div>
-      )}
-      {showEditCropModal && (
-
-        <div className="crop-modal">
-
-          <div className="crop-container">
-
-            <Cropper
-              image={editImageSrc}
-              crop={editCrop}
-              zoom={editZoom}
-              aspect={1}
-              onCropChange={setEditCrop}
-              onZoomChange={setEditZoom}
-              onCropComplete={(area, pixels) =>
-                setEditCroppedAreaPixels(pixels)
-              }
-            />
-
-          </div>
-
-          <button
-            onClick={async () => {
-
-              setPhotoUploading(true)
-
-              const croppedBlob = await getCroppedImg(
-                editImageSrc,
-                editCroppedAreaPixels
-              )
-
-              const formDataUpload = new FormData()
-              formDataUpload.append("file", croppedBlob)
-              formDataUpload.append("upload_preset", "dtjyggwjd")
-
-              const res = await fetch(
-                "https://api.cloudinary.com/v1_1/dtjyggwjd/image/upload",
-                {
-                  method: "POST",
-                  body: formDataUpload
-                }
-              )
-
-              const data = await res.json()
-
-              if (data.secure_url) {
-
-                setEditingStudent({
-                  ...editingStudent,
-                  profile_photo: data.secure_url
-                })
-
-              }
-
-              setPhotoUploading(false)
-              setShowEditCropModal(false)
-
-            }}
-          >
-            {photoUploading ? "Uploading..." : "Crop & Upload"}
-          </button>
-
-        </div>
-
-      )}
-      {confirmActiveStudent && (
-        <div className="branch-popup-overlay">
-          <div className="branch-popup">
-
-            <h3 style={{ marginBottom: "10px" }}>
-              Activate Student
-            </h3>
-
-            <p style={{ marginBottom: "20px", color: "#555" }}>
-              Are you sure you want to activate
-              <strong> {confirmActiveStudent.name}</strong> ?
-            </p>
-
-            <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
-
-              <button
-                style={{
-                  background: "#22c55e",
-                  color: "white",
-                  padding: "10px 18px",
-                  borderRadius: "8px",
-                  border: "none"
-                }}
-                onClick={async () => {
-
-                  const { error } = await supabase
-                    .from("students")
-                    .update({
-                      status: "active",
-                      join_date: new Date().toISOString().split("T")[0]
-                    })
-                    .eq("id", confirmActiveStudent.id)
-
-                  if (!error) {
-                    fetchBatchStudents(selectedBatch.name)
-                  }
-
-                  setConfirmActiveStudent(null)
-
-                }}
-              >
-                Yes Activate
-              </button>
-
-              <button
-                style={{
-                  background: "#e5e7eb",
-                  padding: "10px 18px",
-                  borderRadius: "8px",
-                  border: "none"
-                }}
-                onClick={() => setConfirmActiveStudent(null)}
-              >
-                Cancel
-              </button>
-
-            </div>
-
-          </div>
-        </div>
-      )}
+        )
+      }
     </div >
   )
 }
