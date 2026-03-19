@@ -4,7 +4,7 @@ import Cropper from "react-easy-crop"
 
 import "./Students.css"
 
-function Students() {
+function Students({ goDashboard }) {
   const [students, setStudents] = useState([])
   const [selected, setSelected] = useState([])
   const [search, setSearch] = useState("")
@@ -14,6 +14,7 @@ function Students() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
   const [showCropModal, setShowCropModal] = useState(false)
   // 👇 ADD THESE LINES
+  const [systemMessage, setSystemMessage] = useState("")
   const [showAddModal, setShowAddModal] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [activities, setActivities] = useState([])
@@ -135,6 +136,13 @@ function Students() {
     )
 
     setBatchStats(formattedStats)
+  }
+  const showMessage = (msg) => {
+    setSystemMessage(msg)
+
+    setTimeout(() => {
+      setSystemMessage("")
+    }, 3000)
   }
 
   const handleAddBranch = async () => {
@@ -291,7 +299,7 @@ function Students() {
   const handleAddStudent = async () => {
 
     if (!formData.profile_photo) {
-      alert("Please upload profile photo first")
+      showMessage("Please upload profile photo first")
       return
     }
 
@@ -302,10 +310,10 @@ function Students() {
       .insert([formData])
 
     if (error) {
-      alert("Registration failed")
+      showMessage("Registration Failed")
       console.error(error)
     } else {
-      alert("Student Registered Successfully!")
+      showMessage("Student Registered Successfully ✅")
       fetchStudents(formData.branch)
       setFormData({
         name: "",
@@ -320,6 +328,10 @@ function Students() {
         profile_photo: "",   // IMPORTANT
         status: "Active",
       })
+      setTimeout(() => {
+        goDashboard()
+      }, 800)
+
     }
   }
 
@@ -347,6 +359,11 @@ function Students() {
 
   return (
     <div className="students-page">
+      {systemMessage && (
+        <div className="system-message">
+          {systemMessage}
+        </div>
+      )}
       <div className="registration-card">
 
 

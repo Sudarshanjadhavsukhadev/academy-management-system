@@ -312,7 +312,7 @@ function AdminDashboard() {
     }
 
     checkBirthdays()
-  }, [])
+  }, [activeTab])
   useEffect(() => {
 
     const loadNotifications = async () => {
@@ -966,7 +966,7 @@ function AdminDashboard() {
         </>
       )}
       {activeTab === "addStudent" && (
-        <Students />
+        <Students goDashboard={() => setActiveTab("dashboard")} />
       )}
       {activeTab === "studentsList" && (
         <StudentsList
