@@ -142,3 +142,22 @@ font-size:14px;
 text-align:center;
 font-weight:600;
 }
+.confirm-password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.confirm-password-wrapper input {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.tick {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #22c55e;
+  font-size: 20px;
+  font-weight: bold;
+}

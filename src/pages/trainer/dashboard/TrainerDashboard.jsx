@@ -35,6 +35,7 @@ const TrainerDashboard = () => {
   const [batchSearch, setBatchSearch] = useState("")
   const [showCalendar, setShowCalendar] = useState(false)
   const [attendanceDate, setAttendanceDate] = useState("")
+  const [systemMessage, setSystemMessage] = useState(null)
   const fetchTrainerData = async () => {
 
     const { data: authData } = await supabase.auth.getUser()
@@ -175,22 +176,56 @@ const TrainerDashboard = () => {
     const dateToSave =
       selectedDate || new Date().toISOString().split("T")[0]
 
-    const records = Object.keys(attendance).map(studentId => ({
-      student_id: studentId,
-      batch: selectedBatch,
-      date: dateToSave,
-      status: attendance[studentId] === true ? "Present" : "Absent"
-    }))
+    // ⭐ VERY IMPORTANT CHECK
+    const { data: existing } = await supabase
+      .from("attendance")
+      .select("id")
+      .eq("batch", selectedBatch)
+      .eq("date", dateToSave)
+
+    if (existing && existing.length > 0) {
+      showSystemMessage("Attendance already marked for this date", "warning")
+      return
+    }
+
+    const records = Object.keys(attendance).map(studentId => {
+
+      const student = students.find(s => s.id == studentId)
+
+      return {
+        student_id: studentId,
+        student_name: student?.name || "",
+        batch: selectedBatch,
+        date: dateToSave,
+        status: attendance[studentId] === true ? "Present" : "Absent"
+      }
+
+    })
 
     const { error } = await supabase
       .from("attendance")
       .insert(records)
 
     if (!error) {
-      alert("Attendance Saved ✅")
+
+      const { error: notifError } = await supabase
+        .from("notifications")
+        .insert([
+          {
+            message: `📋 ${trainer.name} marked attendance for ${selectedBatch}`
+          }
+        ])
+
+      if (notifError) {
+        console.log("Notification insert failed", notifError)
+      }
+
+      showSystemMessage("Attendance Saved Successfully", "success")
+
       setAttendance({})
       setAttendanceDate("")
     }
+
   }
   const chartData = {
     labels: batches,
@@ -209,6 +244,21 @@ const TrainerDashboard = () => {
   const filteredBatches = batches.filter(batch =>
     batch.toLowerCase().includes(batchSearch.toLowerCase())
   )
+  const showSystemMessage = (text, type = "success") => {
+
+    setSystemMessage(null)   // ⭐ reset first
+
+    setTimeout(() => {
+
+      setSystemMessage({ text, type })
+
+      setTimeout(() => {
+        setSystemMessage(null)
+      }, 3000)
+
+    }, 50)
+
+  }
 
   if (!trainer) return <p>Loading...</p>
   if (view === "profile" && trainer) {
@@ -401,7 +451,11 @@ const TrainerDashboard = () => {
           )
         })}
       </div>
-
+      {systemMessage && (
+        <div className={`system-message ${systemMessage.type}`}>
+          {systemMessage.text}
+        </div>
+      )}
 
 
 

@@ -7,13 +7,13 @@ function AdminResetPassword() {
   const navigate = useNavigate()
 
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")   // ⭐ NEW
   const [loading, setLoading] = useState(false)
   const [sessionReady, setSessionReady] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
 
   useEffect(() => {
 
-    // ⭐⭐⭐ VERY IMPORTANT FIX (ADD THIS HERE)
     if (window.location.hash) {
       window.history.replaceState(
         {},
@@ -25,18 +25,13 @@ function AdminResetPassword() {
     let mounted = true
 
     const prepareRecoverySession = async () => {
-      // ⭐ Step 1 → wait a little because supabase processes hash token
       await new Promise(res => setTimeout(res, 800))
 
       const { data } = await supabase.auth.getSession()
 
       if (data.session && mounted) {
-
-        console.log("✅ Recovery session ready")
         setSessionReady(true)
-
       }
-
     }
 
     prepareRecoverySession()
@@ -45,20 +40,14 @@ function AdminResetPassword() {
       supabase.auth.onAuthStateChange((event) => {
 
         if (event === "PASSWORD_RECOVERY") {
-
-          console.log("✅ PASSWORD_RECOVERY event")
-
           setSessionReady(true)
-
         }
 
       })
 
     return () => {
-
       mounted = false
       listener.subscription.unsubscribe()
-
     }
 
   }, [])
@@ -68,6 +57,13 @@ function AdminResetPassword() {
     e.preventDefault()
 
     setErrorMsg("")
+
+    // ⭐ PASSWORD MATCH VALIDATION
+    if (password !== confirmPassword) {
+      setErrorMsg("Passwords do not match")
+      return
+    }
+
     setLoading(true)
 
     const { error } = await supabase.auth.updateUser({
@@ -77,10 +73,8 @@ function AdminResetPassword() {
     setLoading(false)
 
     if (error) {
-
       setErrorMsg(error.message)
       return
-
     }
 
     alert("✅ Password updated successfully")
@@ -101,6 +95,10 @@ function AdminResetPassword() {
       </div>
     )
   }
+  const isMatch =
+    password &&
+    confirmPassword &&
+    password === confirmPassword
 
   return (
     <div className="admin-login-page">
@@ -121,7 +119,20 @@ function AdminResetPassword() {
             required
           />
 
-          <button disabled={loading}>
+          <div className="confirm-password-wrapper">
+
+            <input
+              type="password"
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+
+            {isMatch && <span className="tick">✔</span>}
+
+          </div>
+          <button disabled={loading || !isMatch}>
             {loading ? "Updating..." : "Update Password"}
           </button>
 

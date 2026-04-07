@@ -17,6 +17,7 @@ function Trainers() {
   const [editingTrainer, setEditingTrainer] = useState(null)
   const [confirmDisableTrainer, setConfirmDisableTrainer] = useState(null)
   const [confirmActiveTrainer, setConfirmActiveTrainer] = useState(null)
+  const [confirmEditTrainer, setConfirmEditTrainer] = useState(null)
   const [allBatches, setAllBatches] = useState([])
   const [selectedBatches, setSelectedBatches] = useState([])
 
@@ -286,25 +287,8 @@ function Trainers() {
                   <td>
                     <button
                       className="edit-btn"
-                      onClick={async () => {
-
-                        const confirmEdit = window.confirm(
-                          `⚠️ You are about to edit trainer "${trainer.name}". Continue?`
-                        )
-
-                        if (!confirmEdit) return
-
-                        setEditingTrainer(trainer)
-
-                        const { data } = await supabase
-                          .from("trainer_batches")
-                          .select("batch_name")
-                          .eq("trainer_id", trainer.user_id)
-
-                        const existing = data?.map(b => b.batch_name) || []
-
-                        setSelectedBatches(existing)
-
+                      onClick={() => {
+                        setConfirmEditTrainer(trainer)
                       }}
                     >
                       Edit
@@ -416,6 +400,60 @@ function Trainers() {
             <button onClick={() => setConfirmActiveTrainer(null)}>
               Cancel
             </button>
+
+          </div>
+        </div>
+      )}
+      {confirmEditTrainer && (
+        <div className="branch-popup-overlay">
+          <div className="branch-popup">
+
+            <h3>⚠️ Edit Trainer</h3>
+
+            <p style={{ marginBottom: "20px" }}>
+              You are about to edit
+              <strong> {confirmEditTrainer.name}</strong>
+            </p>
+
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", marginTop: "20px" }}>
+
+              <button
+                className="add-btn"
+                onClick={async () => {
+
+                  setEditingTrainer(confirmEditTrainer)
+
+                  const { data } = await supabase
+                    .from("trainer_batches")
+                    .select("batch_name")
+                    .eq("trainer_id", confirmEditTrainer.user_id)
+
+                  const existing = data?.map(b => b.batch_name) || []
+
+                  setSelectedBatches(existing)
+
+                  setConfirmEditTrainer(null)
+                }}
+              >
+                Yes Continue
+              </button>
+
+              <button
+                onClick={() => setConfirmEditTrainer(null)}
+
+                style={{
+                  background: "#f1f5f9",
+                  padding: "10px 18px",
+                  borderRadius: "10px",
+                  border: "none",
+                  fontWeight: "600",
+                  cursor: "pointer"
+                }}
+              >
+                Cancel
+              </button>
+
+            </div>
 
           </div>
         </div>

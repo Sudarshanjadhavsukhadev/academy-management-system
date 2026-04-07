@@ -12,7 +12,7 @@ import {
 import { Bar, Pie, Line } from "react-chartjs-2"
 import Calendar from "react-calendar"
 import "react-calendar/dist/Calendar.css"
-
+import * as XLSX from "xlsx"
 import { supabase } from "../../../services/supabase"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -547,7 +547,13 @@ function Batches({ searchStudent }) {
 
 
 
-    const today = new Date().toISOString().split("T")[0]
+    const now = new Date()
+
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, "0")
+    const day = String(now.getDate()).padStart(2, "0")
+
+    const today = `${year}-${month}-${day}`
     const { data: existing } = await supabase
       .from("attendance")
       .select("id")
@@ -668,19 +674,88 @@ function Batches({ searchStudent }) {
 
   const getNextDueDate = (student) => {
 
-    // ⭐ if never paid → don't show due
-    if (!student.last_payment_date) return null
+    if (!student.join_date) return null
 
-    const lastPaid = new Date(student.last_payment_date)
+    const joinDate = new Date(student.join_date)
+    const today = new Date()
 
-    const nextDue = new Date(
-      lastPaid.getFullYear(),
-      lastPaid.getMonth() + 1,
-      lastPaid.getDate()
+    const due = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      joinDate.getDate()
     )
 
-    return nextDue
+    // if already passed → next month
+    if (today > due) {
+      due.setMonth(due.getMonth() + 1)
+    }
 
+    return due
+  }
+
+  const downloadAttendanceSheet = async () => {
+
+    if (!selectedBatch) return
+
+    // 🔥 fetch all attendance of this batch
+    const { data, error } = await supabase
+      .from("attendance")
+      .select("*")
+      .eq("batch", selectedBatch.name)
+
+    if (error) {
+      console.error(error)
+      return
+    }
+
+    // 🔥 get all unique dates
+    const allDates = [...new Set(
+      data.map(r => new Date(r.date).getDate())
+    )].sort((a, b) => a - b)
+
+    // 🔥 group by student
+    const studentsMap = {}
+
+    data.forEach(record => {
+      if (!studentsMap[record.student_id]) {
+        studentsMap[record.student_id] = {
+          name: record.student_name,
+          records: {}
+        }
+      }
+
+      const day = new Date(record.date).getDate()
+
+      studentsMap[record.student_id].records[day] =
+        record.status === "Present" ? "P" : "A"
+    })
+
+    // 🔥 create excel rows
+    const rows = []
+
+    // header
+    const header = ["Student Name", ...allDates]
+    rows.push(header)
+
+    // data rows
+    Object.values(studentsMap).forEach(student => {
+
+      const row = [student.name]
+
+      allDates.forEach(date => {
+        row.push(student.records[date] || "-")
+      })
+
+      rows.push(row)
+    })
+
+    // 🔥 convert to sheet
+    const ws = XLSX.utils.aoa_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+
+    XLSX.utils.book_append_sheet(wb, ws, "Attendance")
+
+    XLSX.writeFile(wb, `${selectedBatch.name}_attendance.xlsx`)
   }
 
   return (
@@ -751,7 +826,7 @@ function Batches({ searchStudent }) {
                   setActiveTab("students")
                 }}
               >
-                {batch.name}
+                {batch.name.split(" ").slice(0, 5).join(" ")}
               </button>
             ))}
           </div>
@@ -784,6 +859,12 @@ function Batches({ searchStudent }) {
                 onClick={() => setActiveTab("attendance")}
               >
                 Attendance
+              </button>
+
+              <button
+                onClick={downloadAttendanceSheet}
+              >
+                Attendance Sheet
               </button>
 
 
@@ -1522,11 +1603,16 @@ function Batches({ searchStudent }) {
                 onClick={async () => {
                   const selectedPaymentDate = new Date(paymentDate)
 
+                  const year = selectedPaymentDate.getFullYear()
+                  const month = String(selectedPaymentDate.getMonth() + 1).padStart(2, "0")
+                  const day = String(selectedPaymentDate.getDate()).padStart(2, "0")
+
+                  const formattedDate = `${year}-${month}-${day}`
+
                   const { error } = await supabase
                     .from("students")
                     .update({
-                      last_payment_date: selectedPaymentDate.toISOString().split("T")[0],
-
+                      last_payment_date: formattedDate,
                       fees_status: "Paid"
                     })
                     .eq("id", paymentStudent.id)
@@ -1535,7 +1621,6 @@ function Batches({ searchStudent }) {
                     fetchBatchStudents(selectedBatch.name)
                     setPaymentStudent(null)
                   }
-
                 }}
               >
                 Save

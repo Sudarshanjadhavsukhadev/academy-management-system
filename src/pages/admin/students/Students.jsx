@@ -298,11 +298,6 @@ function Students({ goDashboard }) {
   }
   const handleAddStudent = async () => {
 
-    if (!formData.profile_photo) {
-      showMessage("Please upload profile photo first")
-      return
-    }
-
     console.log("Submitting:", formData)
 
     const { error } = await supabase
@@ -315,6 +310,7 @@ function Students({ goDashboard }) {
     } else {
       showMessage("Student Registered Successfully ✅")
       fetchStudents(formData.branch)
+
       setFormData({
         name: "",
         activity: [],
@@ -325,13 +321,13 @@ function Students({ goDashboard }) {
         fees: "",
         dob: "",
         reference: "",
-        profile_photo: "",   // IMPORTANT
+        profile_photo: "",   // optional now
         status: "Active",
       })
+
       setTimeout(() => {
         goDashboard()
       }, 800)
-
     }
   }
 
@@ -458,7 +454,7 @@ function Students({ goDashboard }) {
         />
 
         <input
-          type="number"
+          type="text"
           placeholder="Fees Amount"
           value={formData.fees}
           onChange={(e) =>

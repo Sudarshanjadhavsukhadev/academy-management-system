@@ -15,7 +15,7 @@ function AddBatch() {
   const [branches, setBranches] = useState([])
   const [batchBranch, setBatchBranch] = useState("")
   const [message, setMessage] = useState("")
-
+  const [searchBatch, setSearchBatch] = useState("")
   const [batchesList, setBatchesList] = useState([])
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedBatchId, setSelectedBatchId] = useState(null)
@@ -219,32 +219,56 @@ function AddBatch() {
         <div className="batch-list-panel">
 
           <h2>Previous Batches</h2>
+          <input
+            type="text"
+            placeholder="Search batch..."
+            value={searchBatch}
+            onChange={(e) => setSearchBatch(e.target.value)}
+            style={{
+              marginBottom: "15px",
+              padding: "10px",
+              width: "100%",
+              borderRadius: "10px",
+              border: "1px solid #ddd"
+            }}
+          />
 
-          {batchesList.length === 0 ? (
-            <p>No Batches Created</p>
-          ) : (
-            batchesList.map((batch) => (
+        {batchesList.length === 0 ? (
+  <p>No Batches Created</p>
+) : (
+  <div className="batch-list-grid">
 
-              <div key={batch.id} className="batch-card">
+    {batchesList
+      .filter((batch) =>
+        batch.name.toLowerCase().includes(searchBatch.toLowerCase())
+      )
+      .map((batch) => (
 
-                <div>
-                  <strong>{batch.name}</strong>
-                  <p>{batch.branch}</p>
-                </div>
+        <div key={batch.id} className="batch-card">
 
-                <button
-                  className="delete-btn"
-                  onClick={() => {
-                    setSelectedBatchId(batch.id)
-                    setShowDeleteModal(true)
-                  }}
-                >
-                  Delete
-                </button>
+          <div>
+            <strong>{batch.name}</strong>
+            <span style={{ fontSize: "12px", color: "#64748b" }}>
+              {batch.branch}
+            </span>
+          </div>
 
-              </div>
+          <button
+            className="delete-btn"
+            onClick={() => {
+              setSelectedBatchId(batch.id)
+              setShowDeleteModal(true)
+            }}
+          >
+            Delete
+          </button>
 
-            )))}
+        </div>
+
+      ))}
+
+  </div>
+)}
 
         </div>
         {showDeleteModal && (

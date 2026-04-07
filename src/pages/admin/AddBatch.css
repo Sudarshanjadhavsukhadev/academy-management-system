@@ -161,27 +161,36 @@
 
 .batch-list-panel {
   width: 420px;
+  max-height: 500px;
+  /* 🔥 limit height */
+  overflow-y: auto;
+  /* 🔥 scroll */
+  padding-right: 6px;
+}
+.batch-list-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;   /* 2 columns */
+  gap: 14px;
 }
 
 /* ================= BATCH CARD ================= */
 
 .batch-card {
   background: white;
-  padding: 20px;
-  border-radius: 20px;
-  margin-bottom: 18px;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, .08);
+  padding: 16px;
+  border-radius: 16px;
 
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 6px;
 
-  transition: .3s;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  transition: 0.25s;
 }
 
 .batch-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 25px 55px rgba(0, 0, 0, .15);
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
 }
 
 /* Batch Name */
@@ -256,6 +265,7 @@
   height: auto !important;
   box-shadow: none !important;
 }
+
 .real-clock-input .react-time-picker__wrapper:focus-within {
   border-color: #6366f1;
   box-shadow: none !important;
@@ -284,24 +294,25 @@
 .react-time-picker__clock {
   z-index: 9999;
 }
-.real-clock-input .react-time-picker{
+
+.real-clock-input .react-time-picker {
   width: 100%;
 }
 
-.real-clock-input .react-time-picker__wrapper{
+.real-clock-input .react-time-picker__wrapper {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.real-clock-input .react-time-picker__inputGroup{
+.real-clock-input .react-time-picker__inputGroup {
   display: flex;
   gap: 6px;
   align-items: center;
 }
 
-.real-clock-input .react-time-picker__inputGroup input{
+.real-clock-input .react-time-picker__inputGroup input {
   width: 40px !important;
   min-width: 40px !important;
   text-align: center;

@@ -54,11 +54,11 @@ function AdminDashboard() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [toast, setToast] = useState(null)
-  const [hoveredNotification, setHoveredNotification] = useState(null)
   const [removedNotifications, setRemovedNotifications] = useState([])
   const [attendanceBatch, setAttendanceBatch] = useState(null)
   const [searchResults, setSearchResults] = useState([])
   const [selectedSearchStudent, setSelectedSearchStudent] = useState(null)
+  const [systemMessage, setSystemMessage] = useState(null)
 
   const [revenueType, setRevenueType] = useState(null)
   const [dbSize, setDbSize] = useState(0)
@@ -256,8 +256,17 @@ function AdminDashboard() {
   }, [])
 
   useEffect(() => {
+
     const checkBirthdays = async () => {
+
       const today = new Date()
+      const todayStr = today.toDateString()
+
+      // ✅ CHECK IF CLEARED TODAY
+      const clearedToday = localStorage.getItem("notificationsClearedToday")
+
+      if (clearedToday === todayStr) return  // 🚨 STOP HERE
+
       const day = today.getDate()
       const month = today.getMonth() + 1
 
@@ -278,41 +287,41 @@ function AdminDashboard() {
 
       if (birthdayStudents.length > 0) {
 
-        const messages = birthdayStudents.map(
-          s => `🎂 Today is ${s.name}'s birthday`
-        )
-
         const removed = JSON.parse(
           localStorage.getItem("removedNotifications") || "[]"
         )
 
-        setNotifications(prev => {
+        const messages = birthdayStudents.map(
+          s => `🎂 Today is ${s.name}'s birthday`
+        )
 
+        const filteredMessages = messages.filter(
+          msg => !removed.includes(msg)
+        )
+
+        setNotifications(prev => {
           const merged = [...prev]
 
-          messages.forEach(msg => {
-
-            if (removed.includes(msg)) return   // ⭐ VERY IMPORTANT
-
+          filteredMessages.forEach(msg => {
             if (!merged.includes(msg)) {
               merged.push(msg)
             }
-
           })
 
           return merged
-
         })
 
-        if (messages.some(msg => !removed.includes(msg))) {
+        if (filteredMessages.length > 0) {
           setShowNotifications(true)
         }
 
       }
+
     }
 
     checkBirthdays()
-  }, [activeTab])
+
+  }, [])
   useEffect(() => {
 
     const loadNotifications = async () => {
@@ -330,8 +339,14 @@ function AdminDashboard() {
       if (data) {
         const clearedAt = localStorage.getItem("notificationsClearedAt")
 
+        const removed = JSON.parse(
+          localStorage.getItem("removedNotifications") || "[]"
+        )
+
         const messages = data
           .filter(n => {
+
+            if (removed.includes(n.message)) return false   // ⭐⭐ VERY IMPORTANT
 
             if (!clearedAt) return true
 
@@ -344,13 +359,16 @@ function AdminDashboard() {
           const merged = [...prev]
 
           messages.forEach(msg => {
+
+            if (removed.includes(msg)) return
+
             if (!merged.includes(msg)) {
               merged.push(msg)
             }
+
           })
 
           return merged
-
         })
         if (messages.length > 0) {
 
@@ -492,44 +510,60 @@ function AdminDashboard() {
   }, [])
   const clearNotifications = async () => {
 
-    const { error } = await supabase
+    await supabase
       .from("notifications")
       .delete()
       .neq("id", 0)
 
-    if (error) {
-      console.log(error)
-      return
-    }
+    localStorage.setItem(
+      "removedNotifications",
+      JSON.stringify(notifications)
+    )
+    localStorage.setItem(
+      "notificationsClearedToday",
+      new Date().toDateString()
+    )
+    // ✅ ADD THIS LINE (IMPORTANT)
+    setRemovedNotifications(notifications)
 
-    // ⭐ clear UI instantly
     setNotifications([])
-
-    // ⭐ close panel
     setShowNotifications(false)
 
-    // ⭐ remove toast memory
     localStorage.removeItem("lastToast")
 
-    // ⭐ VERY IMPORTANT → block old notifications
     localStorage.setItem(
       "notificationsClearedAt",
       new Date().toISOString()
     )
+  }
+
+  const showSystemMessage = (text, type = "info") => {
+
+    setSystemMessage({ text, type })
+
+    setTimeout(() => {
+      setSystemMessage(null)
+    }, 4000)
 
   }
 
-  const removeSingleNotification = async (index) => {
+  const removeSingleNotification = (index) => {
 
-    const message = notifications[index]
+    const notif = notifications[index]
 
-    // ⭐ save removed message in localStorage
-    const removed = JSON.parse(localStorage.getItem("removedNotifications") || "[]")
+    const removed = JSON.parse(
+      localStorage.getItem("removedNotifications") || "[]"
+    )
 
-    if (!removed.includes(message)) {
-      removed.push(message)
-      localStorage.setItem("removedNotifications", JSON.stringify(removed))
-    }
+    const updatedRemoved = [...removed, notif]
+
+    localStorage.setItem(
+      "removedNotifications",
+      JSON.stringify(updatedRemoved)
+    )
+
+    // ✅ ADD THIS LINE
+    setRemovedNotifications(updatedRemoved)
 
     setNotifications(prev =>
       prev.filter((_, i) => i !== index)
@@ -599,7 +633,7 @@ function AdminDashboard() {
       const result = await response.json()
 
       if (response.ok) {
-        alert("✅ Data saved successfully")
+        showSystemMessage("Data saved successfully", "success")
 
         // 🔥 Reset dashboard after saving
         setRawData([])
@@ -609,10 +643,10 @@ function AdminDashboard() {
         setAnalysisDone(false)
       }
       else {
-        alert(result.message || "❌ Failed to save data")
+        showSystemMessage(result.message || "Failed to save data", "error")
       }
     } catch (error) {
-      alert("❌ Server error")
+      showSystemMessage("Server error occurred", "error")
     } finally {
       setShowSaveModal(false)
     }
@@ -1090,8 +1124,7 @@ function AdminDashboard() {
                   <div
                     key={index}
                     className="notification-item"
-                    onMouseEnter={() => setHoveredNotification(index)}
-                    onMouseLeave={() => setHoveredNotification(null)}
+
                   >
 
                     <span
@@ -1107,14 +1140,14 @@ function AdminDashboard() {
                       {note}
                     </span>
 
-                    {hoveredNotification === index && (
-                      <button
-                        className="notif-close"
-                        onClick={() => removeSingleNotification(index)}
-                      >
-                        ✖
-                      </button>
-                    )}
+
+                    <button
+                      className="notif-close"
+                      onClick={() => removeSingleNotification(index)}
+                    >
+                      ✖
+                    </button>
+
 
                   </div>
 
@@ -1127,6 +1160,11 @@ function AdminDashboard() {
       {toast && (
         <div className="toast-notification">
           {toast}
+        </div>
+      )}
+      {systemMessage && (
+        <div className={`system-message ${systemMessage.type}`}>
+          {systemMessage.text}
         </div>
       )}
 

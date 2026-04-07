@@ -389,9 +389,17 @@ select:focus {
 .branch-popup {
   background: white;
   padding: 30px;
-  border-radius: 10px;
+  border-radius: 16px;
   text-align: center;
-  position: relative
+  position: relative;
+
+  width: 420px;
+  max-width: 90%;
+
+  max-height: 80vh;     /* ✅ limit height */
+  overflow-y: auto;     /* ✅ enable scroll */
+
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
 }
 
 .branch-popup button {
@@ -415,25 +423,34 @@ select:focus {
 }
 
 .popup-branch-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr;   /* 1 column */
+  gap: 12px;
   margin-top: 20px;
+
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 5px;
 }
 
 .popup-branch-btn {
-  padding: 8px 16px;
-  border-radius: 20px;
-  border: 1px solid #ddd;
-  background: white;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: none;
+
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+
+  font-weight: 600;
+  font-size: 14px;
+
   cursor: pointer;
-  transition: 0.2s;
+  transition: all 0.25s ease;
 }
 
 .popup-branch-btn:hover {
-  background: #4f46e5;
-  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
 }
 
 .menu-container {
@@ -991,14 +1008,13 @@ select:focus {
 
 /* today */
 .payment-calendar .react-calendar__tile--now {
-  background: #fde68a !important;
-  color: #111 !important;
+  background: #22c55e !important;
+  color: white !important;
+  font-weight: bold;
+  border-radius: 10px;
 }
 
 /* remove purple from all days */
-.payment-calendar .react-calendar__tile:enabled {
-  background: transparent !important;
-}
 
 .payment-calendar .react-calendar__navigation {
   display: flex;
@@ -1332,4 +1348,11 @@ select:focus {
 
 .due-soon-row {
   background: #fef3c7;
+}
+.payment-calendar .react-calendar__tile {
+  pointer-events: auto !important;
+  cursor: pointer;
+}
+.payment-calendar .react-calendar__tile:active {
+  transform: scale(0.9);
 }
