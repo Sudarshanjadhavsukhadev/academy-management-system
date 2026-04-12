@@ -180,6 +180,7 @@ function AdminDashboard() {
       const { count: studentCount } = await supabase
         .from("students")
         .select("*", { count: "exact", head: true })
+        .ilike("status", "active")
 
       const { count: trainerCount } = await supabase
         .from("trainers")
@@ -194,6 +195,7 @@ function AdminDashboard() {
       const { data: students } = await supabase
         .from("students")
         .select("fees")
+        .ilike("status", "active")
 
       const totalRevenue = (students || []).reduce(
         (sum, s) => sum + (Number(s.fees) || 0),

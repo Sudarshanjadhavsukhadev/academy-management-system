@@ -1620,6 +1620,7 @@ function Batches({ searchStudent }) {
                   if (!error) {
                     fetchBatchStudents(selectedBatch.name)
                     setPaymentStudent(null)
+
                   }
                 }}
               >
@@ -1918,6 +1919,7 @@ function Batches({ searchStudent }) {
 
                     if (!error) {
                       fetchBatchStudents(selectedBatch.name)
+                      window.location.reload()   // ✅ ADD THIS LINE
                     }
 
                     setConfirmDisableStudent(null)
@@ -2047,8 +2049,8 @@ function Batches({ searchStudent }) {
 
                     if (!error) {
                       fetchBatchStudents(selectedBatch.name)
+                      window.location.reload()   // 🔥 ADD THIS
                     }
-
                     setConfirmActiveStudent(null)
 
                   }}
