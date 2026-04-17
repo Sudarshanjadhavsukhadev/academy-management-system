@@ -21,6 +21,7 @@ import Settings from "./pages/admin/settings/Settings"
 import AddBatch from "./pages/admin/AddBatch"
 import AddBranch from "./pages/admin/AddBranch"
 import AddActivity from "./pages/admin/AddActivity"
+import InactiveStudents from "./pages/admin/InactiveStudents"
 /* TRAINER */
 import TrainerLogin from "./pages/trainer/auth/TrainerLogin"
 import TrainerRegister from "./pages/trainer/auth/TrainerRegister"
@@ -70,6 +71,7 @@ function App() {
         <Route path="add-batch" element={<AddBatch />} />
         <Route path="branches" element={<AddBranch />} />
         <Route path="add-activity" element={<AddActivity />} />
+        <Route path="inactive-students" element={<InactiveStudents />} />
       </Route>
 
       {/* USER PROTECTED */}
