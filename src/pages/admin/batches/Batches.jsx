@@ -597,8 +597,18 @@ function Batches({ searchStudent }) {
 
 
   const filteredBatches = batches
-  const filteredStudents = batchStudents.filter((student) =>
-    student.name?.toLowerCase().includes(search.toLowerCase())
+  // ✅ ACTIVE STUDENTS
+  const activeStudents = batchStudents.filter(
+    (student) =>
+      student.status !== "disabled" &&
+      student.name?.toLowerCase().includes(search.toLowerCase())
+  )
+
+  // ✅ INACTIVE STUDENTS
+  const inactiveStudents = batchStudents.filter(
+    (student) =>
+      student.status === "disabled" &&
+      student.name?.toLowerCase().includes(search.toLowerCase())
   )
 
 
@@ -763,73 +773,59 @@ function Batches({ searchStudent }) {
 
       {/* HEADER */}
 
-      {/* BRANCH PILLS */}
       {!showPopup && (
-        <div className="batch-section">
+        <div className="top-control-bar">
 
-          <div className="branch-header-row">
-            <h2>Select Branch</h2>
-
-            <div className="branch-actions">
-
-              <button
-                className="back-dashboard-btn"
-                onClick={() => navigate("/admin")}
-              >
-                ← Back
-              </button>
-
-              <input
-                className="student-search-input"
-                type="text"
-                placeholder="Search student..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-
-            </div>
-          </div>
-          <div className="batch-list">
-
+          {/* Branch */}
+          <select
+            value={selectedBranch}
+            onChange={(e) => {
+              setSelectedBranch(e.target.value)
+              setSelectedBatch(null)
+              fetchBatches(e.target.value)
+            }}
+          >
+            <option value="">Select Branch</option>
             {branches.map(branch => (
-              <button
-                key={branch.id}
-                className={`batch-pill ${selectedBranch === branch.id ? "active-batch" : ""}`}
-
-                onClick={() => {
-                  setSelectedBranch(branch.id)
-                  setSelectedBatch(null)
-                  fetchBatches(branch.id)
-                }}
-              >
+              <option key={branch.id} value={branch.id}>
                 {branch.name}
-              </button>
+              </option>
             ))}
+          </select>
+
+          {/* Batch */}
+          <select
+            value={selectedBatch?.id || ""}
+            onChange={(e) => {
+              const batch = batches.find(b => b.id == e.target.value)
+              setSelectedBatch(batch)
+              setActiveTab("students")
+            }}
+          >
+            <option value="">Select Batch</option>
+            {batches.map(batch => (
+              <option key={batch.id} value={batch.id}>
+                {batch.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Search */}
+          <div className="right-controls">
+
+            <input
+              type="text"
+              placeholder="Search student..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+
+            <button onClick={() => navigate("/admin")}>
+              ← Back
+            </button>
 
           </div>
-        </div>
-      )}
 
-      {/* BATCH PILLS */}
-      {selectedBranch && !showPopup && (
-        <div className="batch-section">
-          <h2>Select Batch</h2>
-
-          <div className="batch-list">
-            {filteredBatches.map((batch) => (
-              <button
-                key={batch.id}
-                className={`batch-pill ${selectedBatch?.id === batch.id ? "active-batch" : ""
-                  }`}
-                onClick={() => {
-                  setSelectedBatch(batch)
-                  setActiveTab("students")
-                }}
-              >
-                {batch.name.split(" ").slice(0, 5).join(" ")}
-              </button>
-            ))}
-          </div>
         </div>
       )}
 
@@ -865,6 +861,12 @@ function Batches({ searchStudent }) {
                 onClick={downloadAttendanceSheet}
               >
                 Attendance Sheet
+              </button>
+              <button
+                className={activeTab === "inactive" ? "tab-btn active-tab" : "tab-btn"}
+                onClick={() => setActiveTab("inactive")}
+              >
+                Inactive Students
               </button>
 
 
@@ -930,7 +932,7 @@ function Batches({ searchStudent }) {
                   </thead>
 
                   <tbody>
-                    {filteredStudents.map((student) => (
+                    {activeStudents.map((student) => (
                       <tr
                         key={student.id}
                         className={
@@ -1172,6 +1174,70 @@ function Batches({ searchStudent }) {
 
               )}
 
+            </div>
+          )}
+          {activeTab === "inactive" && (
+            <div className="students-list">
+
+              <h3>Inactive Students</h3>
+
+              {inactiveStudents.length === 0 ? (
+                <p>No inactive students</p>
+              ) : (
+                <table className="students-table">
+
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Joining Date</th>
+                      <th>Fees</th>
+                      <th>Last Paid</th>
+                      <th>Action</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {inactiveStudents.map((student) => (
+                      <tr key={student.id} className="disabled-row">
+
+                        <td>{student.name}</td>
+                        <td>{formatDate(student.join_date)}</td>
+                        <td>{student.fees || "-"}</td>
+
+                        <td>
+                          {student.last_payment_date
+                            ? formatDate(student.last_payment_date)
+                            : "-"}
+                        </td>
+
+                        <td>
+                          <button
+                            className="view-btn"
+                            onClick={() => {
+                              setViewStudent(student)
+                              fetchStudentAttendanceCalendar(student.id)
+                            }}
+                          >
+                            View
+                          </button>
+                        </td>
+
+                        <td>
+                          <button
+                            className="disable-btn"
+                            onClick={() => toggleStudentStatus(student)}
+                          >
+                            Activate
+                          </button>
+                        </td>
+
+                      </tr>
+                    ))}
+                  </tbody>
+
+                </table>
+              )}
             </div>
           )}
         </div>
@@ -1919,7 +1985,7 @@ function Batches({ searchStudent }) {
 
                     if (!error) {
                       fetchBatchStudents(selectedBatch.name)
-                      window.location.reload()   // ✅ ADD THIS LINE
+                      // ✅ ADD THIS LINE
                     }
 
                     setConfirmDisableStudent(null)
