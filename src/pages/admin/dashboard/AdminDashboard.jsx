@@ -61,6 +61,7 @@ function AdminDashboard() {
   const [systemMessage, setSystemMessage] = useState(null)
 
   const [revenueType, setRevenueType] = useState(null)
+  const [last12MonthsRevenue, setLast12MonthsRevenue] = useState([])
   const [dbSize, setDbSize] = useState(0)
   const [tableUsage, setTableUsage] = useState([])
   const DB_LIMIT = 500 * 1024 * 1024
@@ -173,88 +174,74 @@ function AdminDashboard() {
 
   }, [rawData, columns])
 
+  const fetchStats = async () => {
+
+    const { count: studentCount } = await supabase
+      .from("students")
+      .select("*", { count: "exact", head: true })
+      .ilike("status", "active")
+
+    const { count: trainerCount } = await supabase
+      .from("trainers")
+      .select("*", { count: "exact", head: true })
+
+    const { count: batchCount } = await supabase
+      .from("batches")
+      .select("*", { count: "exact", head: true })
+
+    const { count: activityCount } = await supabase
+      .from("courses")
+      .select("*", { count: "exact", head: true })
+
+    const { data: students } = await supabase
+      .from("students")
+      .select("fees, last_payment_date")
+      .ilike("status", "active")
+
+    const now = new Date()
+    const currentMonth = now.getMonth()
+    const currentYear = now.getFullYear()
+
+    const monthlyRevenue = (students || [])
+      .filter(s => {
+        if (!s.last_payment_date) return false
+        const d = new Date(s.last_payment_date)   // ✅ CORRECT
+        return d.getMonth() === currentMonth &&
+          d.getFullYear() === currentYear
+      })
+      .reduce((sum, s) => sum + (Number(s.fees) || 0), 0)
+
+    setStats({
+      students: studentCount ?? 0,
+      trainers: trainerCount ?? 0,
+      batches: batchCount ?? 0,
+      activities: activityCount ?? 0,
+      revenue: monthlyRevenue
+    })
+  }
+
+
 
   useEffect(() => {
-    const fetchStats = async () => {
 
-      const { count: studentCount } = await supabase
-        .from("students")
-        .select("*", { count: "exact", head: true })
-        .ilike("status", "active")
-
-      const { count: trainerCount } = await supabase
-        .from("trainers")
-        .select("*", { count: "exact", head: true })
-
-      const { count: batchCount } = await supabase
-        .from("batches")
-        .select("*", { count: "exact", head: true })
-      const { count: activityCount } = await supabase
-        .from("courses")
-        .select("*", { count: "exact", head: true })
-      const { data: students } = await supabase
-        .from("students")
-        .select("fees")
-        .ilike("status", "active")
-
-      const totalRevenue = (students || []).reduce(
-        (sum, s) => sum + (Number(s.fees) || 0),
-        0
-      )
-
-      const { data: trainers } = await supabase
-        .from("trainers")
-        .select("salary")
-
-      const trainerSalary = (trainers || []).reduce(
-        (sum, t) => sum + (Number(t.salary) || 0),
-        0
-      )
-
-
-      // Fetch upcoming classes (next 5 classes)
-      const { data: batchData } = await supabase
-        .from("batches")
-        .select("*")
-
-      const today = new Date()
-      const dayName = today.toLocaleDateString("en-US", { weekday: "short" })
-
-      const now = new Date()
-      const currentMinutes = now.getHours() * 60 + now.getMinutes()
-
-      const todayClasses = batchData
-        ?.filter(batch =>
-          batch.days && batch.days.includes(dayName)
-        )
-        .sort((a, b) => {
-
-          const [ah, am] = a.timing.split(":").map(Number)
-          const [bh, bm] = b.timing.split(":").map(Number)
-
-          const aMinutes = ah * 60 + am
-          const bMinutes = bh * 60 + bm
-
-          const aDiff = Math.abs(aMinutes - currentMinutes)
-          const bDiff = Math.abs(bMinutes - currentMinutes)
-
-          return aDiff - bDiff
-        })
-        .slice(0, 5)
-
-      setUpcomingClasses(todayClasses || [])
-
-
-      setStats({
-        students: studentCount ?? 0,
-        trainers: trainerCount ?? 0,
-        batches: batchCount ?? 0,
-        activities: activityCount ?? 0,
-        revenue: totalRevenue
-      })
+    const loadData = async () => {
+      await fetchStats()
+      await fetchLast12MonthsRevenue()
     }
 
-    fetchStats()
+    loadData()
+
+    const handler = async () => {
+      await fetchStats()
+      await fetchLast12MonthsRevenue()
+    }
+
+    window.addEventListener("paymentUpdated", handler)
+
+    return () => {
+      window.removeEventListener("paymentUpdated", handler)
+    }
+
   }, [])
 
   useEffect(() => {
@@ -700,11 +687,13 @@ function AdminDashboard() {
 
     const { data } = await supabase
       .from("students")
-      .select("fees, created_at")
+      .select("fees, last_payment_date")
 
     const total = (data || [])
       .filter(s => {
-        const m = new Date(s.created_at).getMonth()
+        if (!s.last_payment_date) return false
+
+        const m = new Date(s.last_payment_date).getMonth()
         return m === monthNumber
       })
       .reduce((sum, s) => sum + (Number(s.fees) || 0), 0)
@@ -727,7 +716,7 @@ function AdminDashboard() {
       .select("fees, created_at")
 
     const total = (data || [])
-      .filter(s => new Date(s.created_at).getFullYear() == selectedYear)
+      .filter(s => new Date(s.last_payment_date).getFullYear() == selectedYear)
       .reduce((sum, s) => sum + (Number(s.fees) || 0), 0)
 
     setRevenueResult({
@@ -735,6 +724,41 @@ function AdminDashboard() {
       amount: total
     })
 
+  }
+  const fetchLast12MonthsRevenue = async () => {
+    const { data } = await supabase
+      .from("students")
+      .select("fees, last_payment_date")
+    const monthsMap = {}
+    const now = new Date()
+
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const key = `${d.getFullYear()}-${d.getMonth()}`
+      monthsMap[key] = 0
+    }
+
+    data.forEach(s => {
+      if (!s.last_payment_date) return
+
+     const d = new Date(s.last_payment_date)
+      const key = `${d.getFullYear()}-${d.getMonth()}`
+      if (monthsMap.hasOwnProperty(key)) {
+        monthsMap[key] += Number(s.fees) || 0
+      }
+    })
+
+    const result = Object.entries(monthsMap)
+      .map(([key, value]) => {
+        const [year, month] = key.split("-")
+        return {
+          label: `${month}/${year}`,
+          revenue: value
+        }
+      })
+      .reverse()
+
+    setLast12MonthsRevenue(result)
   }
 
   return (
@@ -841,7 +865,14 @@ function AdminDashboard() {
                   <span>Total Activity</span>
                   <h2>{stats.activities}</h2>
                 </div>
-                <div className="stat-card">
+                <div
+                  className="stat-card"
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    fetchLast12MonthsRevenue()
+                    setRevenueType("last12")
+                  }}
+                >
                   <span>Total Revenue</span>
                   <h2>₹{stats.revenue}</h2>
                 </div>
@@ -980,24 +1011,31 @@ function AdminDashboard() {
               )}
 
               {/* Payment by Month Bar */}
-              {charts.paymentByMonth && (
-                <div className="chart-card">
-                  <h3>Total Payment by Month</h3>
-                  <Bar
-                    data={{
-                      labels: Object.keys(charts.paymentByMonth),
-                      datasets: [
-                        {
-                          data: Object.values(charts.paymentByMonth),
-                          backgroundColor: "#9333ea",
-                        },
-                      ],
-                    }}
-                  />
-                </div>
-              )}
+
             </div>
           )}
+
+          {/* 🔥 YOUR REVENUE CHART (OUTSIDE) */}
+          {revenueType === "last12" && (
+            <div className="chart-card">
+              <h3>Monthly Revenue</h3>
+
+              <Bar
+                data={{
+                  labels: last12MonthsRevenue.map(i => i.label),
+                  datasets: [
+                    {
+                      data: last12MonthsRevenue.map(i => i.revenue),
+                      backgroundColor: "#6366f1",
+                    },
+                  ],
+                }}
+              />
+            </div>
+          )}
+
+
+
 
         </>
       )}

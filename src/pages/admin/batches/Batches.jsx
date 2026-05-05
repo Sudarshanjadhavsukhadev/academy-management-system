@@ -54,7 +54,7 @@ function Batches({ searchStudent }) {
   const [activeTab, setActiveTab] = useState("details")
   const [trainers, setTrainers] = useState([])
   const [courses, setCourses] = useState([])
-
+  const [resetBatchFees, setResetBatchFees] = useState(false)
   const [batchTrainer, setBatchTrainer] = useState("")
   const [batchTime, setBatchTime] = useState("")
   const [studentStrength, setStudentStrength] = useState(0)
@@ -883,6 +883,23 @@ function Batches({ searchStudent }) {
               >
                 Edit
               </button>
+              <button
+                style={{
+                  background: "#ef4444",
+                  color: "white",
+                  padding: "8px 14px",
+                  borderRadius: "6px",
+                  border: "none"
+                }}
+                onClick={() => {
+                  const confirmReset = window.confirm("Reset batch fees display?")
+                  if (!confirmReset) return
+
+                  setResetBatchFees(true)
+                }}
+              >
+                Reset Batch Fees
+              </button>
             </div>
 
             <div className="batch-meta">
@@ -1017,14 +1034,22 @@ function Batches({ searchStudent }) {
                           </button>
                         </td>
                         <td>
-                          {student.last_payment_date
-                            ? formatDate(student.last_payment_date)
-                            : "-"}
+                          {resetBatchFees && student.last_payment_date
+                            ? "-"
+                            : student.last_payment_date
+                              ? formatDate(student.last_payment_date)
+                              : "-"}
                         </td>
                         <td>
-                          {student.last_payment_date
-                            ? formatDate(getNextDueDate(student))
-                            : "-"
+                          {resetBatchFees
+                            ? (!student.last_payment_date && student.join_date
+                              ? formatDate(getNextDueDate(student))   // ✅ show due for unpaid
+                              : "-"
+                            )
+                            : (student.last_payment_date
+                              ? formatDate(getNextDueDate(student))
+                              : "-"
+                            )
                           }
                         </td>
 
@@ -1685,8 +1710,11 @@ function Batches({ searchStudent }) {
 
                   if (!error) {
                     fetchBatchStudents(selectedBatch.name)
-                    setPaymentStudent(null)
 
+                    // 🔥 ADD THIS LINE
+                    window.dispatchEvent(new Event("paymentUpdated"))
+
+                    setPaymentStudent(null)
                   }
                 }}
               >
@@ -1933,6 +1961,42 @@ function Batches({ searchStudent }) {
                   }}
                 >
                   Save Changes
+                </button>
+
+                <button
+                  style={{
+                    background: "#ef4444",
+                    color: "white",
+                    padding: "10px 18px",
+                    borderRadius: "8px",
+                    border: "none"
+                  }}
+                  onClick={async () => {
+
+                    const confirmReset = window.confirm("Reset student payment?")
+
+                    if (!confirmReset) return
+
+                    const { error } = await supabase
+                      .from("students")
+                      .update({
+                        last_payment_date: null,
+                        fees_status: null
+                      })
+                      .eq("id", editingStudent.id)
+
+                    if (!error) {
+                      fetchBatchStudents(selectedBatch.name)
+
+                      // 🔥 VERY IMPORTANT → update dashboard
+                      window.dispatchEvent(new Event("paymentUpdated"))
+
+                      setEditingStudent(null)
+                    }
+
+                  }}
+                >
+                  Reset Fees
                 </button>
 
                 <button
