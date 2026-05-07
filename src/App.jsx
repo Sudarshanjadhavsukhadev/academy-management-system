@@ -22,6 +22,7 @@ import AddBatch from "./pages/admin/AddBatch"
 import AddBranch from "./pages/admin/AddBranch"
 import AddActivity from "./pages/admin/AddActivity"
 import InactiveStudents from "./pages/admin/InactiveStudents"
+import Revenue from "./pages/admin/revenue/Revenue"
 /* TRAINER */
 import TrainerLogin from "./pages/trainer/auth/TrainerLogin"
 import TrainerRegister from "./pages/trainer/auth/TrainerRegister"
@@ -72,6 +73,7 @@ function App() {
         <Route path="branches" element={<AddBranch />} />
         <Route path="add-activity" element={<AddActivity />} />
         <Route path="inactive-students" element={<InactiveStudents />} />
+        <Route path="revenue" element={<Revenue />} />
       </Route>
 
       {/* USER PROTECTED */}

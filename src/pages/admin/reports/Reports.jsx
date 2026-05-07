@@ -31,14 +31,29 @@ function Reports() {
   const [marketingData, setMarketingData] = useState({})
 
   useEffect(() => {
-    fetchReports()
-  }, [])
 
+    fetchReports()
+
+    const handler = () => {
+      fetchReports()
+    }
+
+    window.addEventListener("paymentUpdated", handler)
+
+    return () => {
+      window.removeEventListener("paymentUpdated", handler)
+    }
+
+  }, [])
   const fetchReports = async () => {
 
 
     const { data: students } = await supabase
       .from("students")
+      .select("*")
+
+    const { data: manualRevenue } = await supabase
+      .from("manual_revenue")
       .select("*")
 
     const totalStudents = students?.length || 0
@@ -86,9 +101,9 @@ function Reports() {
 
     // fill revenue correctly
     students.forEach((s) => {
-      if (!s.join_date) return
+      if (!s.fee_month) return
 
-      const d = new Date(s.join_date)
+      const d = new Date(s.fee_month)
 
       const diffMonths =
         (today.getFullYear() - d.getFullYear()) * 12 +
@@ -96,8 +111,31 @@ function Reports() {
 
       if (diffMonths >= 0 && diffMonths < 12) {
         const index = 11 - diffMonths
-        values[index] += Number(s.fees) || 0
+        values[index] +=
+          (
+            Number(s.fees || 0) *
+            Number(s.advance_months || 1)
+          )
       }
+    })
+    manualRevenue.forEach((r) => {
+
+      if (!r.payment_date) return
+
+      const d = new Date(r.payment_date)
+
+      const diffMonths =
+        (today.getFullYear() - d.getFullYear()) * 12 +
+        (today.getMonth() - d.getMonth())
+
+      if (diffMonths >= 0 && diffMonths < 12) {
+
+        const index = 11 - diffMonths
+
+        values[index] += Number(r.amount || 0)
+
+      }
+
     })
 
     setMonthlyRevenue({
@@ -115,9 +153,34 @@ function Reports() {
     const courseMap = {}
 
     students.forEach((s) => {
-      const course = s.activity || "Unknown"
 
-      courseMap[course] = (courseMap[course] || 0) + 1
+      let course = s.activity || "Unknown"
+
+      // FIX ARRAY FORMAT
+      if (typeof course === "string") {
+
+        try {
+
+          const parsed = JSON.parse(course)
+
+          if (Array.isArray(parsed)) {
+            course = parsed.join(", ")
+          }
+
+        } catch {
+
+          course = course
+            .replace("[", "")
+            .replace("]", "")
+            .replace(/"/g, "")
+
+        }
+
+      }
+
+      courseMap[course] =
+        (courseMap[course] || 0) + 1
+
     })
 
     const courseLabels = Object.keys(courseMap)

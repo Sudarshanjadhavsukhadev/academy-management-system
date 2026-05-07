@@ -42,7 +42,9 @@ function Batches({ searchStudent }) {
   const [search, setSearch] = useState("")
 
   const [selectedBatch, setSelectedBatch] = useState(null)
-  const [showPopup, setShowPopup] = useState(true)
+  const [showPopup, setShowPopup] = useState(
+    sessionStorage.getItem("batchPopupShown") !== "true"
+  )
   const [popupStep, setPopupStep] = useState(1)
   const [showMenu, setShowMenu] = useState(false)
   const [showAddBranchPopup, setShowAddBranchPopup] = useState(false)
@@ -64,8 +66,8 @@ function Batches({ searchStudent }) {
   const [viewStudent, setViewStudent] = useState(null)
   const [editingStudent, setEditingStudent] = useState(null)
   const [paymentStudent, setPaymentStudent] = useState(null)
-  const [paymentDate, setPaymentDate] = useState(new Date())
-  const [monthsPaid, setMonthsPaid] = useState(1)
+  const [paymentDate, setPaymentDate] = useState(null)
+  const [advanceText, setAdvanceText] = useState("")
   const [attendance, setAttendance] = useState({})
   const [attendanceStats, setAttendanceStats] = useState([])
   const [studentAttendanceChart, setStudentAttendanceChart] = useState(null)
@@ -347,6 +349,30 @@ function Batches({ searchStudent }) {
   }, [])
   useEffect(() => {
 
+    if (branches.length === 0) return
+
+    const savedBranch = sessionStorage.getItem("selectedBranch")
+    const savedBatch = sessionStorage.getItem("selectedBatch")
+
+    if (savedBranch) {
+
+      setSelectedBranch(savedBranch)
+
+      fetchBatches(savedBranch)
+
+    }
+
+    if (savedBatch) {
+
+      setSelectedBatch(JSON.parse(savedBatch))
+
+      setActiveTab("students")
+
+    }
+
+  }, [branches])
+  useEffect(() => {
+
     const getTrainer = async () => {
 
       const { data: userData } = await supabase.auth.getUser()
@@ -372,6 +398,7 @@ function Batches({ searchStudent }) {
         await fetchTrainerBatches(data[0].name)
 
         setShowPopup(false)
+        sessionStorage.setItem("batchPopupShown", "true")
 
       }
     }
@@ -780,8 +807,13 @@ function Batches({ searchStudent }) {
           <select
             value={selectedBranch}
             onChange={(e) => {
+
               setSelectedBranch(e.target.value)
+              sessionStorage.setItem("selectedBranch", e.target.value)
+
               setSelectedBatch(null)
+              sessionStorage.removeItem("selectedBatch")
+
               fetchBatches(e.target.value)
             }}
           >
@@ -799,6 +831,11 @@ function Batches({ searchStudent }) {
             onChange={(e) => {
               const batch = batches.find(b => b.id == e.target.value)
               setSelectedBatch(batch)
+
+              sessionStorage.setItem(
+                "selectedBatch",
+                JSON.stringify(batch)
+              )
               setActiveTab("students")
             }}
           >
@@ -1012,7 +1049,32 @@ function Batches({ searchStudent }) {
                         }
                       >
 
-                        <td>{student.name}</td>
+                        <td>
+
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column"
+                            }}
+                          >
+
+                            <span>{student.name}</span>
+
+                            {student.advance_note && (
+                              <small
+                                style={{
+                                  color: "#22c55e",
+                                  fontWeight: "600",
+                                  marginTop: "4px"
+                                }}
+                              >
+                                {student.advance_note}
+                              </small>
+                            )}
+
+                          </div>
+
+                        </td>
 
                         <td>{formatDate(student.join_date)}</td>
 
@@ -1026,33 +1088,82 @@ function Batches({ searchStudent }) {
                             disabled={student.status === "disabled"}
                             onClick={() => {
                               setPaymentStudent(student)
-                              setPaymentDate(new Date())
-                              setMonthsPaid(1)
+                              setPaymentDate(new Date())   // 🔥 ALWAYS set fresh today on open
+
                             }}
                           >
                             Mark Fees
                           </button>
                         </td>
                         <td>
-                          {resetBatchFees && student.last_payment_date
+
+                          {student.advance_note
                             ? "-"
-                            : student.last_payment_date
-                              ? formatDate(student.last_payment_date)
-                              : "-"}
-                        </td>
-                        <td>
-                          {resetBatchFees
-                            ? (!student.last_payment_date && student.join_date
-                              ? formatDate(getNextDueDate(student))   // ✅ show due for unpaid
-                              : "-"
-                            )
-                            : (student.last_payment_date
-                              ? formatDate(getNextDueDate(student))
-                              : "-"
+                            : (
+                              resetBatchFees && student.last_payment_date
+                                ? "-"
+                                : student.last_payment_date
+                                  ? formatDate(student.last_payment_date)
+                                  : "-"
                             )
                           }
-                        </td>
 
+                        </td>
+                        <td>
+
+                          {student.advance_note
+                            ? "-"
+                            : (
+                              resetBatchFees
+                                ? (
+                                  !student.last_payment_date && student.join_date
+                                    ? formatDate(getNextDueDate(student))
+                                    : "-"
+                                )
+                                : (
+                                  student.last_payment_date
+                                    ? formatDate(getNextDueDate(student))
+                                    : "-"
+                                )
+                            )
+                          }
+
+                        </td>
+                        <td>
+
+                          {student.advance_note && (
+
+                            <button
+                              style={{
+                                background: "#ef4444",
+                                color: "white",
+                                border: "none",
+                                padding: "6px 10px",
+                                borderRadius: "6px",
+                                cursor: "pointer"
+                              }}
+                              onClick={async () => {
+
+                                await supabase
+                                  .from("students")
+                                  .update({
+                                    advance_note: null,
+                                    last_payment_date: null,
+                                    fee_month: null,
+                                    fees_status: null
+                                  })
+                                  .eq("id", student.id)
+
+                                fetchBatchStudents(selectedBatch.name)
+
+                              }}
+                            >
+                              Remove Note
+                            </button>
+
+                          )}
+
+                        </td>
 
                         <td className="action-buttons">
 
@@ -1277,7 +1388,10 @@ function Batches({ searchStudent }) {
 
               <button
                 className="close-popup"
-                onClick={() => setShowPopup(false)}
+                onClick={() => {
+                  setShowPopup(false)
+                  sessionStorage.setItem("batchPopupShown", "true")
+                }}
               >
                 ✕
               </button>
@@ -1293,9 +1407,18 @@ function Batches({ searchStudent }) {
                         key={branch.id}
                         className="popup-branch-btn"
                         onClick={() => {
+
                           setSelectedBranch(branch.id)
+
+                          sessionStorage.setItem(
+                            "selectedBranch",
+                            branch.id
+                          )
+
                           fetchBatches(branch.id)
+
                           setPopupStep(2)
+
                         }}
                       >
                         {branch.name}
@@ -1315,9 +1438,23 @@ function Batches({ searchStudent }) {
                         key={batch.id}
                         className="popup-branch-btn"
                         onClick={() => {
+
                           setSelectedBatch(batch)
+
+                          sessionStorage.setItem(
+                            "selectedBatch",
+                            JSON.stringify(batch)
+                          )
+
                           setActiveTab("students")
+
                           setShowPopup(false)
+
+                          sessionStorage.setItem(
+                            "batchPopupShown",
+                            "true"
+                          )
+
                         }}
                       >
                         {batch.name}
@@ -1662,23 +1799,15 @@ function Batches({ searchStudent }) {
               />
             </div>
 
-            <p style={{
-              marginTop: "15px",
-              fontSize: "12px",
-              color: "#9ca3af"
-            }}>
-              Leave empty for current month or select advance months
-            </p>
-
             <input
-              type="number"
-              min="1"
-              value={monthsPaid}
-              onChange={(e) => setMonthsPaid(Number(e.target.value) || 1)}
+              type="text"
+              placeholder="Example: Fees Paid Till Dec 2026"
+              value={advanceText}
+              onChange={(e) => setAdvanceText(e.target.value)}
               style={{
+                width: "250px",
                 padding: "10px",
-                marginTop: "5px",
-                width: "140px",
+                marginTop: "15px",
                 borderRadius: "8px",
                 border: "1px solid #ddd"
               }}
@@ -1692,11 +1821,22 @@ function Batches({ searchStudent }) {
 
 
                 onClick={async () => {
+                  if (!paymentDate) {
+                    alert("Please select date")
+                    return
+                  }
+
                   const selectedPaymentDate = new Date(paymentDate)
 
                   const year = selectedPaymentDate.getFullYear()
-                  const month = String(selectedPaymentDate.getMonth() + 1).padStart(2, "0")
-                  const day = String(selectedPaymentDate.getDate()).padStart(2, "0")
+
+                  const month = String(
+                    selectedPaymentDate.getMonth() + 1
+                  ).padStart(2, "0")
+
+                  const day = String(
+                    selectedPaymentDate.getDate()
+                  ).padStart(2, "0")
 
                   const formattedDate = `${year}-${month}-${day}`
 
@@ -1704,7 +1844,9 @@ function Batches({ searchStudent }) {
                     .from("students")
                     .update({
                       last_payment_date: formattedDate,
-                      fees_status: "Paid"
+                      fee_month: formattedDate,
+                      fees_status: "Paid",
+                      advance_note: advanceText,
                     })
                     .eq("id", paymentStudent.id)
 
@@ -1715,6 +1857,8 @@ function Batches({ searchStudent }) {
                     window.dispatchEvent(new Event("paymentUpdated"))
 
                     setPaymentStudent(null)
+                    setPaymentDate(null)
+                    setAdvanceText("")
                   }
                 }}
               >
@@ -1723,7 +1867,10 @@ function Batches({ searchStudent }) {
 
               <button
                 style={{ marginLeft: "10px" }}
-                onClick={() => setPaymentStudent(null)}
+                onClick={() => {
+                  setPaymentStudent(null)
+                  setPaymentDate(null)   // 🔥 VERY IMPORTANT
+                }}
               >
                 Cancel
               </button>
@@ -1981,6 +2128,7 @@ function Batches({ searchStudent }) {
                       .from("students")
                       .update({
                         last_payment_date: null,
+                        fee_month: null,
                         fees_status: null
                       })
                       .eq("id", editingStudent.id)

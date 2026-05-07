@@ -59,7 +59,13 @@ function AdminDashboard() {
   const [searchResults, setSearchResults] = useState([])
   const [selectedSearchStudent, setSelectedSearchStudent] = useState(null)
   const [systemMessage, setSystemMessage] = useState(null)
-
+  const [manualRevenueAmount, setManualRevenueAmount] = useState("")
+  const [manualRevenueNote, setManualRevenueNote] = useState("")
+  const [manualRevenueDate, setManualRevenueDate] = useState(
+    new Date().toISOString().split("T")[0]
+  )
+  const [showManualRevenueBox, setShowManualRevenueBox] = useState(false)
+  const [manualRevenueHistory, setManualRevenueHistory] = useState([])
   const [revenueType, setRevenueType] = useState(null)
   const [last12MonthsRevenue, setLast12MonthsRevenue] = useState([])
   const [dbSize, setDbSize] = useState(0)
@@ -146,13 +152,7 @@ function AdminDashboard() {
       )
     })
 
-    const paymentByMonth = {}
-    rawData.forEach((row) => {
-      const month = row["Month"]
-      const amount = Number(row["Payment Amount"]) || 0
-      if (!month) return
-      paymentByMonth[month] = (paymentByMonth[month] || 0) + amount
-    })
+
 
     const paymentStatusMap = {}
     rawData.forEach((row) => {
@@ -163,7 +163,7 @@ function AdminDashboard() {
 
     setCharts({
       numericTotals,
-      paymentByMonth,
+
       paymentStatusMap,
     })
 
@@ -195,22 +195,57 @@ function AdminDashboard() {
 
     const { data: students } = await supabase
       .from("students")
-      .select("fees, last_payment_date")
+      .select("fees, fee_month")
       .ilike("status", "active")
 
     const now = new Date()
     const currentMonth = now.getMonth()
     const currentYear = now.getFullYear()
 
-    const monthlyRevenue = (students || [])
+    const studentRevenue = (students || [])
       .filter(s => {
-        if (!s.last_payment_date) return false
-        const d = new Date(s.last_payment_date)   // ✅ CORRECT
-        return d.getMonth() === currentMonth &&
-          d.getFullYear() === currentYear
-      })
-      .reduce((sum, s) => sum + (Number(s.fees) || 0), 0)
 
+        if (!s.fee_month) return false
+
+        const d = new Date(s.fee_month)
+
+        return (
+          d.getMonth() === currentMonth &&
+          d.getFullYear() === currentYear
+        )
+
+      })
+      .reduce(
+        (sum, s) =>
+          sum + (Number(s.fees) || 0),
+        0
+      )
+
+    const { data: manualRevenue } = await supabase
+      .from("manual_revenue")
+      .select("*")
+
+    const manualRevenueTotal = (manualRevenue || [])
+      .filter(r => {
+
+        if (!r.payment_date) return false
+
+        const d = new Date(r.payment_date)
+
+        return (
+          d.getMonth() === currentMonth &&
+          d.getFullYear() === currentYear
+        )
+
+      })
+      .reduce(
+        (sum, r) =>
+          sum + (Number(r.amount) || 0),
+        0
+      )
+
+    const monthlyRevenue =
+      studentRevenue + manualRevenueTotal
     setStats({
       students: studentCount ?? 0,
       trainers: trainerCount ?? 0,
@@ -227,6 +262,8 @@ function AdminDashboard() {
     const loadData = async () => {
       await fetchStats()
       await fetchLast12MonthsRevenue()
+      setRevenueType("last12")
+      await fetchManualRevenueHistory()
     }
 
     loadData()
@@ -234,6 +271,8 @@ function AdminDashboard() {
     const handler = async () => {
       await fetchStats()
       await fetchLast12MonthsRevenue()
+      setRevenueType("last12")
+      await fetchManualRevenueHistory()
     }
 
     window.addEventListener("paymentUpdated", handler)
@@ -261,8 +300,11 @@ function AdminDashboard() {
 
       const { data } = await supabase
         .from("students")
-        .select("name, dob")
+        .select("fees, fee_month")
 
+      const { data: manualRevenue } = await supabase
+        .from("manual_revenue")
+        .select("*")
       if (!data) return
 
       const birthdayStudents = data.filter(student => {
@@ -687,7 +729,7 @@ function AdminDashboard() {
 
     const { data } = await supabase
       .from("students")
-      .select("fees, last_payment_date")
+      .select("fees, fee_month")
 
     const total = (data || [])
       .filter(s => {
@@ -726,39 +768,90 @@ function AdminDashboard() {
 
   }
   const fetchLast12MonthsRevenue = async () => {
+
     const { data } = await supabase
       .from("students")
-      .select("fees, last_payment_date")
+      .select("fees, fee_month")
+
+    const { data: manualRevenue } = await supabase
+      .from("manual_revenue")
+      .select("*")
+
     const monthsMap = {}
     const now = new Date()
 
-    for (let i = 0; i < 12; i++) {
+    // generate last 12 months in correct order
+    for (let i = 11; i >= 0; i--) {
+
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+
       const key = `${d.getFullYear()}-${d.getMonth()}`
+
       monthsMap[key] = 0
     }
 
+    // add revenue
     data.forEach(s => {
-      if (!s.last_payment_date) return
 
-     const d = new Date(s.last_payment_date)
+      if (!s.fee_month) return
+
+      const d = new Date(s.fee_month)
+
       const key = `${d.getFullYear()}-${d.getMonth()}`
+
       if (monthsMap.hasOwnProperty(key)) {
         monthsMap[key] += Number(s.fees) || 0
       }
+
+    })
+    manualRevenue.forEach(r => {
+
+      if (!r.payment_date) return
+
+      const d = new Date(r.payment_date)
+
+      const key =
+        `${d.getFullYear()}-${d.getMonth()}`
+
+      if (monthsMap.hasOwnProperty(key)) {
+
+        monthsMap[key] += Number(r.amount) || 0
+
+      }
+
     })
 
-    const result = Object.entries(monthsMap)
-      .map(([key, value]) => {
-        const [year, month] = key.split("-")
-        return {
-          label: `${month}/${year}`,
-          revenue: value
-        }
-      })
-      .reverse()
+    // final chart data
+    const result = Object.entries(monthsMap).map(([key, value]) => {
+
+      const [year, month] = key.split("-")
+
+      const date = new Date(year, month)
+
+      return {
+        label: date.toLocaleString("default", {
+          month: "short",
+          year: "2-digit"
+        }),
+        revenue: value
+      }
+
+    })
 
     setLast12MonthsRevenue(result)
+
+  }
+  const fetchManualRevenueHistory = async () => {
+
+    const { data } = await supabase
+      .from("manual_revenue")
+      .select("*")
+      .order("created_at", { ascending: false })
+
+    if (data) {
+      setManualRevenueHistory(data)
+    }
+
   }
 
   return (
@@ -867,14 +960,22 @@ function AdminDashboard() {
                 </div>
                 <div
                   className="stat-card"
-                  onContextMenu={(e) => {
-                    e.preventDefault()
-                    fetchLast12MonthsRevenue()
-                    setRevenueType("last12")
+                  onDoubleClick={async () => {
+
+                    await fetchManualRevenueHistory()
+
+                    setShowManualRevenueBox(true)
+
+                  }}
+                  style={{
+                    cursor: "pointer"
                   }}
                 >
+
                   <span>Total Revenue</span>
+
                   <h2>₹{stats.revenue}</h2>
+
                 </div>
 
 
@@ -954,262 +1055,458 @@ function AdminDashboard() {
 
           </div>
 
+
         </div>
-      )}
-      {activeTab === "dashboard" && (
-        <>
-          {/* Summary Cards */}
-          {summary.rows && (
-            <div className="summary-grid">
-              <div className="summary-card">
-                Total Rows<br /><b>{summary.rows}</b>
-              </div>
-              <div className="summary-card">
-                Numeric Fields<br /><b>{summary.numeric}</b>
-              </div>
-              <div className="summary-card">
-                Text Fields<br /><b>{summary.text}</b>
-              </div>
-            </div>
-          )}
-
-          {/* Charts */}
-          {charts.numericTotals && (
-            <div className="chart-grid">
-              {/* Numeric Summary */}
-              <div className="chart-card">
-                <h3>Numeric Data Summary</h3>
-                <Bar
-                  data={{
-                    labels: Object.keys(charts.numericTotals),
-                    datasets: [
-                      {
-                        data: Object.values(charts.numericTotals),
-                        backgroundColor: "#2563eb",
-                      },
-                    ],
-                  }}
-                />
-              </div>
-
-              {/* Payment Status Pie */}
-              {charts.paymentStatusMap && (
-                <div className="chart-card">
-                  <h3>Payment Status Distribution</h3>
-                  <Pie
-                    data={{
-                      labels: Object.keys(charts.paymentStatusMap),
-                      datasets: [
-                        {
-                          data: Object.values(charts.paymentStatusMap),
-                          backgroundColor: ["#2563eb", "#16a34a"],
-                        },
-                      ],
-                    }}
-                  />
+      )
+      }
+      {
+        activeTab === "dashboard" && (
+          <>
+            {/* Summary Cards */}
+            {summary.rows && (
+              <div className="summary-grid">
+                <div className="summary-card">
+                  Total Rows<br /><b>{summary.rows}</b>
                 </div>
-              )}
+                <div className="summary-card">
+                  Numeric Fields<br /><b>{summary.numeric}</b>
+                </div>
+                <div className="summary-card">
+                  Text Fields<br /><b>{summary.text}</b>
+                </div>
+              </div>
+            )}
 
-              {/* Payment by Month Bar */}
+            {/* Charts */}
 
-            </div>
-          )}
 
-          {/* 🔥 YOUR REVENUE CHART (OUTSIDE) */}
-          {revenueType === "last12" && (
-            <div className="chart-card">
-              <h3>Monthly Revenue</h3>
 
-              <Bar
-                data={{
-                  labels: last12MonthsRevenue.map(i => i.label),
-                  datasets: [
-                    {
-                      data: last12MonthsRevenue.map(i => i.revenue),
-                      backgroundColor: "#6366f1",
-                    },
-                  ],
+
+
+
+
+          </>
+        )
+      }
+      {
+        activeTab === "addStudent" && (
+          <Students goDashboard={() => setActiveTab("dashboard")} />
+        )
+      }
+      {
+        activeTab === "studentsList" && (
+          <StudentsList
+            goBack={() => setActiveTab("dashboard")}
+          />
+        )
+      }
+      {
+        activeTab === "updateFees" && (
+          <UpdateFees />
+        )
+      }
+      {
+        activeTab === "attendanceReport" && (
+          <AttendanceReport />
+        )
+      }
+
+      {
+        activeTab === "batches" && (
+          <Batches
+            openAddModal={openBatchModal}
+            searchStudent={selectedSearchStudent}
+          />
+        )
+      }
+
+      {
+        activeTab === "courses" && (
+          <Courses />
+        )
+      }
+      {
+        activeTab === "attendance" && (
+          <Attendance
+            batchName={attendanceBatch}
+            goBack={() => setActiveTab("dashboard")}
+          />
+        )
+      }
+      {
+        activeTab === "trainers" && (
+          <Trainers />
+        )
+      }
+      {/* Upload Modal */}
+      {
+        showUploadModal && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <h3>Upload Excel File</h3>
+
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => {
+                  handleExcelUpload(e)
+                  setShowUploadModal(false)
                 }}
               />
-            </div>
-          )}
-
-
-
-
-        </>
-      )}
-      {activeTab === "addStudent" && (
-        <Students goDashboard={() => setActiveTab("dashboard")} />
-      )}
-      {activeTab === "studentsList" && (
-        <StudentsList
-          goBack={() => setActiveTab("dashboard")}
-        />
-      )}
-      {activeTab === "updateFees" && (
-        <UpdateFees />
-      )}
-      {activeTab === "attendanceReport" && (
-        <AttendanceReport />
-      )}
-
-      {activeTab === "batches" && (
-        <Batches
-          openAddModal={openBatchModal}
-          searchStudent={selectedSearchStudent}
-        />
-      )}
-
-      {activeTab === "courses" && (
-        <Courses />
-      )}
-      {activeTab === "attendance" && (
-        <Attendance
-          batchName={attendanceBatch}
-          goBack={() => setActiveTab("dashboard")}
-        />
-      )}
-      {activeTab === "trainers" && (
-        <Trainers />
-      )}
-      {/* Upload Modal */}
-      {showUploadModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>Upload Excel File</h3>
-
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={(e) => {
-                handleExcelUpload(e)
-                setShowUploadModal(false)
-              }}
-            />
-            <button
-              className="cancel-btn"
-              onClick={() => setShowUploadModal(false)}
-            >
-              Cancel
-            </button>
-
-
-
-
-          </div>
-        </div>
-      )}
-      {/* Save Confirmation Modal */}
-      {showSaveModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>Save Analysis?</h3>
-            <p>Do you want to save this analyzed data to database?</p>
-
-            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
-              <button className="upload-btn" onClick={saveToDatabase}>
-                Yes, Save
-              </button>
-
               <button
                 className="cancel-btn"
-                onClick={() => {
-                  setShowSaveModal(false)
-                  setAnalysisDone(false)
-                }}
+                onClick={() => setShowUploadModal(false)}
               >
                 Cancel
               </button>
 
 
+
+
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
+      {/* Save Confirmation Modal */}
+      {
+        showSaveModal && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <h3>Save Analysis?</h3>
+              <p>Do you want to save this analyzed data to database?</p>
 
-      {showNotifications && (
-        <>
-          <div
-            className="notification-overlay"
-            onClick={() => setShowNotifications(false)}
-          ></div>
-
-          <div className="notification-panel">
-            <div className="notification-header">
-              <h3>Notifications</h3>
-
-              <div className="notification-actions">
+              <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+                <button className="upload-btn" onClick={saveToDatabase}>
+                  Yes, Save
+                </button>
 
                 <button
-                  className="clear-btn"
-                  onClick={clearNotifications}
+                  className="cancel-btn"
+                  onClick={() => {
+                    setShowSaveModal(false)
+                    setAnalysisDone(false)
+                  }}
                 >
-                  Clear
+                  Cancel
                 </button>
 
-                <button onClick={() => setShowNotifications(false)}>
-                  ✖
-                </button>
 
               </div>
             </div>
+          </div>
+        )
+      }
 
-            <div className="notification-body">
-              {notifications.length === 0 ? (
-                <p>No new notifications</p>
-              ) : (
-                notifications.map((note, index) => (
+      {
+        showNotifications && (
+          <>
+            <div
+              className="notification-overlay"
+              onClick={() => setShowNotifications(false)}
+            ></div>
 
-                  <div
-                    key={index}
-                    className="notification-item"
+            <div className="notification-panel">
+              <div className="notification-header">
+                <h3>Notifications</h3>
 
+                <div className="notification-actions">
+
+                  <button
+                    className="clear-btn"
+                    onClick={clearNotifications}
                   >
+                    Clear
+                  </button>
 
-                    <span
-                      onClick={() => {
+                  <button onClick={() => setShowNotifications(false)}>
+                    ✖
+                  </button>
 
-                        if (note.includes("trainer registration")) {
-                          setActiveTab("trainers")
-                          setShowNotifications(false)
+                </div>
+              </div>
+
+              <div className="notification-body">
+                {notifications.length === 0 ? (
+                  <p>No new notifications</p>
+                ) : (
+                  notifications.map((note, index) => (
+
+                    <div
+                      key={index}
+                      className="notification-item"
+
+                    >
+
+                      <span
+                        onClick={() => {
+
+                          if (note.includes("trainer registration")) {
+                            setActiveTab("trainers")
+                            setShowNotifications(false)
+                          }
+
+                        }}
+                      >
+                        {note}
+                      </span>
+
+
+                      <button
+                        className="notif-close"
+                        onClick={() => removeSingleNotification(index)}
+                      >
+                        ✖
+                      </button>
+
+
+                    </div>
+
+                  ))
+                )}
+              </div>
+            </div>
+          </>
+        )
+      }
+      {
+        showManualRevenueBox && (
+
+          <div className="modal-overlay">
+
+            <div
+              className="modal"
+              style={{
+                width: "350px"
+              }}
+            >
+
+              <h3>Manual Revenue Entry</h3>
+
+              <input
+                type="number"
+                placeholder="Enter Revenue Amount"
+                value={manualRevenueAmount}
+                onChange={(e) =>
+                  setManualRevenueAmount(e.target.value)
+                }
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  marginTop: "20px",
+                  borderRadius: "8px",
+                  border: "1px solid #ddd"
+                }}
+              />
+              <input
+                type="date"
+                value={manualRevenueDate}
+                onChange={(e) =>
+                  setManualRevenueDate(e.target.value)
+                }
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  marginTop: "15px",
+                  borderRadius: "8px",
+                  border: "1px solid #ddd"
+                }}
+              />
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  marginTop: "20px"
+                }}
+              >
+
+                <button
+                  className="upload-btn"
+                  onClick={async () => {
+
+                    if (!manualRevenueAmount) {
+                      alert("Enter amount")
+                      return
+                    }
+
+
+
+                    const { error } = await supabase
+                      .from("manual_revenue")
+                      .insert([
+                        {
+                          amount: manualRevenueAmount,
+                          payment_date: manualRevenueDate
                         }
+                      ])
 
+                    if (error) {
+
+                      console.log(error)
+
+                      alert(error.message)
+
+                      return
+                    }
+
+                    if (!error) {
+
+                      setManualRevenueAmount("")
+                      setManualRevenueDate(
+                        new Date().toISOString().split("T")[0]
+                      )
+                      setShowManualRevenueBox(false)
+
+                      await fetchStats()
+                      await fetchLast12MonthsRevenue()
+                      await fetchManualRevenueHistory()
+
+                      window.dispatchEvent(
+                        new Event("paymentUpdated")
+                      )
+
+                    }
+
+                  }}
+                >
+                  Save
+                </button>
+
+                <button
+                  className="cancel-btn"
+                  onClick={() =>
+                    setShowManualRevenueBox(false)
+                  }
+                >
+                  Cancel
+                </button>
+
+              </div>
+              <div
+                style={{
+                  marginTop: "25px",
+                  maxHeight: "220px",
+                  overflowY: "auto"
+                }}
+              >
+
+                <h4 style={{ marginBottom: "10px" }}>
+                  Revenue History
+                </h4>
+
+                {manualRevenueHistory.length === 0 ? (
+
+                  <p>No entries</p>
+
+                ) : (
+
+                  manualRevenueHistory.map((item) => (
+
+                    <div
+                      key={item.id}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        background: "#f9fafb",
+                        padding: "10px",
+                        borderRadius: "8px",
+                        marginBottom: "10px"
                       }}
                     >
-                      {note}
-                    </span>
 
+                      <div>
 
-                    <button
-                      className="notif-close"
-                      onClick={() => removeSingleNotification(index)}
-                    >
-                      ✖
-                    </button>
+                        <strong>
+                          ₹{item.amount}
+                        </strong>
 
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "#6b7280"
+                          }}
+                        >
+                          {item.payment_date}
+                        </div>
 
-                  </div>
+                      </div>
 
-                ))
-              )}
+                      <button
+                        onClick={async () => {
+
+                          const confirmDelete = window.confirm(
+                            "Are you sure you want to delete this manual revenue entry?"
+                          )
+
+                          if (!confirmDelete) return
+
+                          await supabase
+                            .from("manual_revenue")
+                            .delete()
+                            .eq("id", item.id)
+
+                          await fetchStats()
+                          await fetchLast12MonthsRevenue()
+                          await fetchManualRevenueHistory()
+
+                          showSystemMessage(
+                            "Manual revenue deleted successfully",
+                            "success"
+                          )
+
+                        }}
+                        style={{
+                          background: "#ef4444",
+                          color: "white",
+                          border: "none",
+                          padding: "6px 10px",
+                          borderRadius: "6px",
+                          cursor: "pointer"
+                        }}
+                      >
+                        Delete
+                      </button>
+
+                    </div>
+
+                  ))
+
+                )}
+
+              </div>
+
             </div>
+
           </div>
-        </>
-      )}
-      {toast && (
-        <div className="toast-notification">
-          {toast}
-        </div>
-      )}
-      {systemMessage && (
-        <div className={`system-message ${systemMessage.type}`}>
-          {systemMessage.text}
-        </div>
-      )}
+
+        )
+      }
+
+      {
+        toast && (
+          <div className="toast-notification">
+            {toast}
+          </div>
+        )
+      }
+      {
+        toast && (
+          <div className="toast-notification">
+            {toast}
+          </div>
+        )
+      }
+      {
+        systemMessage && (
+          <div className={`system-message ${systemMessage.type}`}>
+            {systemMessage.text}
+          </div>
+        )
+      }
 
 
-    </div>
+    </div >
   )
 }
 

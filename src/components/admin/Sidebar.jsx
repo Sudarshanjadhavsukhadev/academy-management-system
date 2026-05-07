@@ -34,6 +34,10 @@ function Sidebar() {
         <NavLink to="/admin/add-activity">
           Add Activity
         </NavLink>
+
+        <NavLink to="/admin/revenue">
+          Revenue
+        </NavLink>
         <NavLink to="/admin/inactive-students">
           Inactive Students
         </NavLink>
