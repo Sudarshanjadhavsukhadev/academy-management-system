@@ -1452,3 +1452,10 @@ select:focus {
   gap: 12px;
   margin-left: auto;   /* 🔥 THIS PUSHES IT TO RIGHT */
 }
+.paid-row {
+  background: #dcfce7 !important;
+}
+
+.paid-row td {
+  background: #dcfce7 !important;
+}

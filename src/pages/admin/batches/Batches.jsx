@@ -76,6 +76,7 @@ function Batches({ searchStudent }) {
   const [messagePopup, setMessagePopup] = useState("")
   const [confirmDisableStudent, setConfirmDisableStudent] = useState(null)
   const [confirmActiveStudent, setConfirmActiveStudent] = useState(null)
+  const [confirmResetStudent, setConfirmResetStudent] = useState(null)
   const [editImageSrc, setEditImageSrc] = useState(null)
   const [editCrop, setEditCrop] = useState({ x: 0, y: 0 })
   const [editZoom, setEditZoom] = useState(1)
@@ -124,7 +125,7 @@ function Batches({ searchStudent }) {
     const { count, error } = await supabase
       .from("students")
       .select("*", { count: "exact", head: true })
-      .eq("batch", batchName)
+      .contains("batch", [batchName])
 
     if (error) {
       console.error(error)
@@ -137,28 +138,14 @@ function Batches({ searchStudent }) {
     const { data, error } = await supabase
       .from("students")
       .select("*")
-      .eq("batch", batchName)
-      .eq("branch", selectedBatch.branch)
+      .or(`batch.eq.${batchName},batch_list.cs.{${batchName}}`)
+
     if (error) {
       console.error(error)
       return
     }
 
-    const today = new Date()
-
-    for (let student of data) {
-
-      if (!student.join_date) continue
-
-      const joinDate = new Date(student.join_date)
-
-      // next due date based on join date day
-      const nextDue = new Date(today.getFullYear(), today.getMonth(), joinDate.getDate())
-
-      // if today's date passed the due date and payment exists
-
-    }
-    setBatchStudents(data)
+    setBatchStudents(data || [])
   }
   const fetchLastAttendance = async (batchName) => {
 
@@ -240,6 +227,10 @@ function Batches({ searchStudent }) {
     }
 
     // ⭐ insert batch first
+    const selectedBranchRow = branches.find(
+      branch => String(branch.id) === String(batchBranch)
+    )
+
     const { error } = await supabase
       .from("batches")
       .insert([
@@ -247,6 +238,7 @@ function Batches({ searchStudent }) {
           name: batchName,
           course: batchCourse,
           branch_id: String(batchBranch),
+          branch: selectedBranchRow?.name,
           trainer: batchTrainer,
           timing: batchTime,
           days: batchDays.join(", ")
@@ -292,18 +284,22 @@ function Batches({ searchStudent }) {
   }
   const updateBatch = async () => {
 
+    const selectedBranchRow = branches.find(
+      branch => String(branch.id) === String(batchBranch)
+    )
+
     const { error } = await supabase
       .from("batches")
       .update({
         name: batchName,
         course: batchCourse,
-
+        branch_id: String(batchBranch),
+        branch: selectedBranchRow?.name,
         trainer: batchTrainer,
         timing: batchTime,
         days: batchDays.join(", ")
       })
       .eq("id", selectedBatch.id)
-
     if (error) {
       console.error(error)
     } else {
@@ -711,23 +707,24 @@ function Batches({ searchStudent }) {
 
   const getNextDueDate = (student) => {
 
-    if (!student.join_date) return null
-
-    const joinDate = new Date(student.join_date)
-    const today = new Date()
-
-    const due = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      joinDate.getDate()
-    )
-
-    // if already passed → next month
-    if (today > due) {
-      due.setMonth(due.getMonth() + 1)
+    if (!student.last_payment_date || !student.join_date) {
+      return null
     }
 
-    return due
+    const paidDate = new Date(student.last_payment_date)
+
+    const joinDate = new Date(student.join_date)
+
+    // ✅ ALWAYS USE JOIN DATE DAY
+    const joinDay = joinDate.getDate()
+
+    const nextDue = new Date(
+      paidDate.getFullYear(),
+      paidDate.getMonth() + 1,
+      joinDay
+    )
+
+    return nextDue
   }
 
   const downloadAttendanceSheet = async () => {
@@ -928,11 +925,39 @@ function Batches({ searchStudent }) {
                   borderRadius: "6px",
                   border: "none"
                 }}
-                onClick={() => {
-                  const confirmReset = window.confirm("Reset batch fees display?")
+                onClick={async () => {
+
+                  const confirmReset = window.confirm(
+                    "Reset paid fee records for this batch?"
+                  )
+
                   if (!confirmReset) return
 
+                  // ONLY RESET STUDENTS WHO ACTUALLY PAID
+                  const { error } = await supabase
+                    .from("students")
+                    .update({
+                      payment_reset: true,
+                      fee_month: null,
+                      advance_note: null
+                    })
+                    .eq("batch", selectedBatch.name)
+                    .eq("branch", selectedBatch.branch)
+                    .not("last_payment_date", "is", null)
+
+                  if (error) {
+                    console.log(error)
+                    alert("Failed to reset batch fees")
+                    return
+                  }
+
+                  await fetchBatchStudents(selectedBatch.name)
+
+                  // ✅ VERY IMPORTANT
                   setResetBatchFees(true)
+
+                  alert("Batch fees reset successfully")
+
                 }}
               >
                 Reset Batch Fees
@@ -989,65 +1014,35 @@ function Batches({ searchStudent }) {
                     {activeStudents.map((student) => (
                       <tr
                         key={student.id}
+
                         className={
                           student.status === "disabled"
                             ? "disabled-row"
                             : (() => {
-
-                              const today = new Date()
-                              today.setHours(0, 0, 0, 0)
-
-                              // ⭐⭐⭐ CASE 1 → NEVER PAID
-                              if (!student.last_payment_date && student.join_date) {
-
-                                const join = new Date(student.join_date)
-
-                                // ⭐ CURRENT MONTH DUE DAY
-                                const due = new Date(
-                                  today.getFullYear(),
-                                  today.getMonth(),
-                                  join.getDate()
-                                )
-
-                                // ⭐ if today before due → not overdue
-                                if (today < due) return ""
-
-                                // ⭐ grace from due
-                                const graceEnd = new Date(due)
-                                graceEnd.setDate(graceEnd.getDate() + 15)
-
-                                if (today > graceEnd) {
-                                  return "overdue-row"
-                                }
-
+                              if (student.payment_reset) {
                                 return ""
                               }
 
-                              // ⭐⭐⭐ CASE 2 → HAS PAID → normal due logic
-                              const due = getNextDueDate(student)
-
-                              if (!due) return ""
-
-                              due.setHours(0, 0, 0, 0)
-
-                              // ⭐ ADD 15 DAYS GRACE
-                              const graceEnd = new Date(due)
-                              graceEnd.setDate(graceEnd.getDate() + 15)
-
-                              if (today > graceEnd) {
-                                return "overdue-row"   // 🔴 only after grace
+                              if (!student.last_payment_date) {
+                                return ""
                               }
 
-                              const diff =
-                                (due - today) / (1000 * 60 * 60 * 24)
+                              const paymentDate = new Date(student.last_payment_date)
+                              const today = new Date()
 
-                              if (diff <= 3 && diff >= 0) return "due-soon-row"
+                              const isCurrentMonth =
+                                paymentDate.getMonth() === today.getMonth() &&
+                                paymentDate.getFullYear() === today.getFullYear()
+
+                              if (isCurrentMonth) {
+                                return "paid-row"
+                              }
 
                               return ""
-
                             })()
                         }
                       >
+
 
                         <td>
 
@@ -1078,7 +1073,11 @@ function Batches({ searchStudent }) {
 
                         <td>{formatDate(student.join_date)}</td>
 
-                        <td>{student.fees || "-"}</td>
+                        <td>
+                          {student.batch_fees?.[selectedBatch.name] ||
+                            student.fees ||
+                            "-"}
+                        </td>
 
 
 
@@ -1100,7 +1099,7 @@ function Batches({ searchStudent }) {
                           {student.advance_note
                             ? "-"
                             : (
-                              resetBatchFees && student.last_payment_date
+                              student.payment_reset
                                 ? "-"
                                 : student.last_payment_date
                                   ? formatDate(student.last_payment_date)
@@ -1114,11 +1113,28 @@ function Batches({ searchStudent }) {
                           {student.advance_note
                             ? "-"
                             : (
-                              resetBatchFees
+                              student.payment_reset
                                 ? (
-                                  !student.last_payment_date && student.join_date
-                                    ? formatDate(getNextDueDate(student))
-                                    : "-"
+                                  (() => {
+
+                                    const due = getNextDueDate(student)
+
+                                    if (!due) return "-"
+
+                                    const today = new Date()
+
+                                    due.setHours(0, 0, 0, 0)
+                                    today.setHours(0, 0, 0, 0)
+
+                                    // ✅ overdue students should still show due
+                                    if (today > due) {
+                                      return formatDate(due)
+                                    }
+
+                                    // ✅ future due students hidden
+                                    return "-"
+
+                                  })()
                                 )
                                 : (
                                   student.last_payment_date
@@ -1150,7 +1166,8 @@ function Batches({ searchStudent }) {
                                     advance_note: null,
                                     last_payment_date: null,
                                     fee_month: null,
-                                    fees_status: null
+                                    fees_status: null,
+                                    payment_reset: false
                                   })
                                   .eq("id", student.id)
 
@@ -1839,16 +1856,102 @@ function Batches({ searchStudent }) {
                   ).padStart(2, "0")
 
                   const formattedDate = `${year}-${month}-${day}`
+                  const paymentMonth = `${year}-${month}`
 
+                  // ✅ PREVENT DOUBLE PAYMENT FOR SAME MONTH
+
+                  if (
+                    paymentStudent.fee_month &&
+                    paymentStudent.fee_month.startsWith(`${year}-${month}`)
+                  ) {
+
+                    setMessagePopup(
+                      `⚠️ Fees already marked for ${selectedPaymentDate.toLocaleString(
+                        "default",
+                        { month: "long", year: "numeric" }
+                      )}`
+                    )
+
+                    return
+                  }
+                  // 1. Update student payment status
                   const { error } = await supabase
                     .from("students")
                     .update({
                       last_payment_date: formattedDate,
                       fee_month: formattedDate,
                       fees_status: "Paid",
-                      advance_note: advanceText,
+                      advance_note: advanceText || null,
+                      payment_reset: false
                     })
                     .eq("id", paymentStudent.id)
+
+                  if (error) {
+                    console.error("Student Update Error:", error)
+                    alert(error.message)
+                    return
+                  }
+
+                  // 2. Insert actual payment record
+                  // 2. Insert actual payment record
+                  const monthName = selectedPaymentDate.toLocaleString(
+                    "en-US",
+                    { month: "long" }
+                  )
+
+                  // ALWAYS fetch student using the exact paymentStudent.id first
+                  const { data: studentRow, error: studentLookupError } = await supabase
+                    .from("students")
+                    .select("id")
+                    .eq("id", paymentStudent.id)
+                    .maybeSingle()
+
+                  if (studentLookupError) {
+                    console.error("Student lookup failed:", studentLookupError)
+                    alert("Unable to find student ID for revenue entry.")
+                    return
+                  }
+
+                  if (!studentRow || !studentRow.id) {
+                    alert("Student ID not found.")
+                    return
+                  }
+
+                  const { error: feeError } = await supabase
+                    .from("student_fees")
+                    .insert([
+                      {
+                        student_id: studentRow.id,
+                        student_name: paymentStudent.name,
+                        batch: paymentStudent.batch,
+                        branch: paymentStudent.branch,
+                        month: monthName,
+                        year: Number(year),
+                        amount_paid: Number(
+                          paymentStudent.batch_fees?.[selectedBatch.name] ||
+                          paymentStudent.fees ||
+                          0
+                        ),
+                        payment_date: formattedDate,
+                        status: "Paid",
+                        note: advanceText || null
+                      }
+                    ])
+
+                  if (feeError) {
+                    console.error("student_fees insert error:", feeError)
+                    alert(
+                      "Payment saved on student, but failed to create revenue record.\n\n" +
+                      feeError.message
+                    )
+                    return
+                  }
+
+                  if (feeError) {
+                    console.error(feeError)
+                    alert("Payment saved on student, but failed to create revenue record.")
+                    return
+                  }
 
                   if (!error) {
                     fetchBatchStudents(selectedBatch.name)
@@ -2118,30 +2221,9 @@ function Batches({ searchStudent }) {
                     borderRadius: "8px",
                     border: "none"
                   }}
-                  onClick={async () => {
-
-                    const confirmReset = window.confirm("Reset student payment?")
-
-                    if (!confirmReset) return
-
-                    const { error } = await supabase
-                      .from("students")
-                      .update({
-                        last_payment_date: null,
-                        fee_month: null,
-                        fees_status: null
-                      })
-                      .eq("id", editingStudent.id)
-
-                    if (!error) {
-                      fetchBatchStudents(selectedBatch.name)
-
-                      // 🔥 VERY IMPORTANT → update dashboard
-                      window.dispatchEvent(new Event("paymentUpdated"))
-
-                      setEditingStudent(null)
-                    }
-
+                  onClick={() => {
+                    setConfirmResetStudent(editingStudent)
+                    setEditingStudent(null)
                   }}
                 >
                   Reset Fees
@@ -2197,7 +2279,9 @@ function Batches({ searchStudent }) {
 
                     if (!error) {
                       fetchBatchStudents(selectedBatch.name)
-                      // ✅ ADD THIS LINE
+
+                      // Refresh dashboard cards (Total Students, Revenue, Charts)
+                      window.dispatchEvent(new Event("paymentUpdated"))
                     }
 
                     setConfirmDisableStudent(null)
@@ -2354,6 +2438,101 @@ function Batches({ searchStudent }) {
           </div>
         )
       }
+      {confirmResetStudent && (
+        <div className="branch-popup-overlay">
+          <div className="branch-popup">
+
+            <h3 style={{ marginBottom: "10px" }}>
+              Reset Student Payment
+            </h3>
+
+            <p style={{ marginBottom: "20px", color: "#555" }}>
+              Are you sure you want to reset payment for
+              <strong> {confirmResetStudent.name}</strong>?
+            </p>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "10px",
+                justifyContent: "center"
+              }}
+            >
+              <button
+                style={{
+                  background: "#ef4444",
+                  color: "white",
+                  padding: "10px 18px",
+                  borderRadius: "8px",
+                  border: "none"
+                }}
+                onClick={async () => {
+                  // 1. Delete the student's revenue records
+                  const { error: deleteFeeError } = await supabase
+                    .from("student_fees")
+                    .delete()
+                    .eq("student_id", confirmResetStudent.id)
+
+                  if (deleteFeeError) {
+                    console.error(deleteFeeError)
+                    alert("Failed to remove revenue entry.")
+                    return
+                  }
+
+                  // 2. Reset payment fields on the student record
+                  const { error } = await supabase
+                    .from("students")
+                    .update({
+                      payment_reset: true,
+                      fee_month: null,
+                      advance_note: null,
+                      last_payment_date: null,
+                      fees_status: null
+                    })
+                    .eq("id", confirmResetStudent.id)
+
+                  if (error) {
+                    console.error(error)
+                    alert("Failed to reset student payment.")
+                    return
+                  }
+
+                  // 3. Refresh student list
+                  await fetchBatchStudents(selectedBatch.name)
+
+                  // 4. Refresh dashboard revenue and charts
+                  window.dispatchEvent(
+                    new Event("paymentUpdated")
+                  )
+
+                  // 5. Close popups
+                  setConfirmResetStudent(null)
+                  setEditingStudent(null)
+                }}
+              >
+                Reset Payment
+              </button>
+
+              <button
+                style={{
+                  background: "#e5e7eb",
+                  color: "#111",
+                  padding: "10px 18px",
+                  borderRadius: "8px",
+                  border: "none"
+                }}
+                onClick={() => {
+                  setEditingStudent(confirmResetStudent)
+                  setConfirmResetStudent(null)
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div >
   )
 }

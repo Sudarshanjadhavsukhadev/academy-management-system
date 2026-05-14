@@ -18,7 +18,9 @@ function Students({ goDashboard }) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [activities, setActivities] = useState([])
-
+  const [activityBatches, setActivityBatches] = useState({})
+  const [batchFees, setBatchFees] = useState({})
+  const [selectedBranches, setSelectedBranches] = useState([])
   const [formData, setFormData] = useState({
     name: "",
     activity: [],
@@ -87,7 +89,17 @@ function Students({ goDashboard }) {
     if (error) {
       console.error(error)
     } else {
-      setBatches(data)
+      setBatches((prev) => {
+        // Keep old batches and add only new unique ones
+        const combined = [...prev, ...(data || [])]
+
+        const uniqueBatches = combined.filter(
+          (batch, index, self) =>
+            index === self.findIndex((b) => b.id === batch.id)
+        )
+
+        return uniqueBatches
+      })
     }
   }
 
@@ -297,40 +309,74 @@ function Students({ goDashboard }) {
     setShowCropModal(false)
   }
   const handleAddStudent = async () => {
-
     console.log("Submitting:", formData)
+
+    // Get all selected batch names
+    const selectedBatchList = Object.values(activityBatches)
+
+    // First batch becomes the primary batch
+    const primaryBatch = selectedBatchList[0] || ""
 
     const { error } = await supabase
       .from("students")
-      .insert([formData])
+      .insert([
+        {
+          ...formData,
+
+          // Primary batch (used for backward compatibility)
+          batch: primaryBatch,
+
+          // All selected batches
+          batch_list: selectedBatchList,
+
+          // Store fees for each batch
+          batch_fees: batchFees,
+
+          // Default fee = first selected batch fee
+          fees:
+            batchFees[primaryBatch] ||
+            formData.fees ||
+            0
+        }
+      ])
 
     if (error) {
       showMessage("Registration Failed")
       console.error(error)
-    } else {
-      showMessage("Student Registered Successfully ✅")
-      fetchStudents(formData.branch)
-
-      setFormData({
-        name: "",
-        activity: [],
-        branch: "",
-        batch: "",
-        join_date: "",
-        "Whatsapp Number": "",
-        fees: "",
-        dob: "",
-        reference: "",
-        profile_photo: "",   // optional now
-        status: "Active",
-      })
-
-      setTimeout(() => {
-        goDashboard()
-      }, 800)
+      return
     }
-  }
 
+    showMessage("Student Registered Successfully ✅")
+
+    // Refresh students for the first selected branch
+    fetchStudents(formData.branch)
+
+    // Reset temporary states
+    setActivityBatches({})
+    setBatchFees({})
+    setSelectedBranches([])
+    setBatches([])
+
+    // Reset form
+    setFormData({
+      name: "",
+      activity: [],
+      branch: "",
+      batch: "",
+      join_date: "",
+      "Whatsapp Number": "",
+      fees: "",
+      dob: "",
+      reference: "",
+      profile_photo: "",
+      status: "Active",
+    })
+
+    // Go to dashboard after success
+    setTimeout(() => {
+      goDashboard()
+    }, 800)
+  }
 
 
 
@@ -407,11 +453,25 @@ function Students({ goDashboard }) {
         </div>
 
         <select
-          value={formData.branch}
           onChange={(e) => {
             const branch = e.target.value
-            setFormData({ ...formData, branch })
-            fetchBatches(branch)   // 👈 this loads batches
+            if (!branch) return
+
+            if (!selectedBranches.includes(branch)) {
+              const updatedBranches = [...selectedBranches, branch]
+              setSelectedBranches(updatedBranches)
+
+              // Keep first selected branch in formData.branch
+              setFormData({
+                ...formData,
+                branch: updatedBranches[0]
+              })
+
+              // Load batches from the most recently selected branch
+              fetchBatches(branch)
+            }
+
+            e.target.value = ""
           }}
         >
           <option value="">Select Branch</option>
@@ -422,19 +482,119 @@ function Students({ goDashboard }) {
           ))}
         </select>
 
-        <select
-          value={formData.batch}
-          onChange={(e) =>
-            setFormData({ ...formData, batch: e.target.value })
-          }
-        >
-          <option value="">Select Batch</option>
-          {batches.map((batch) => (
-            <option key={batch.id} value={batch.name}>
-              {batch.name}
-            </option>
+        <div className="selected-activities">
+          {selectedBranches.map((branch) => (
+            <div key={branch} className="activity-chip">
+              {branch}
+              <span
+                onClick={() => {
+                  const updatedBranches = selectedBranches.filter(
+                    (b) => b !== branch
+                  )
+
+                  // Update selected branches
+                  setSelectedBranches(updatedBranches)
+
+                  // Update formData.branch
+                  setFormData({
+                    ...formData,
+                    branch: updatedBranches[0] || ""
+                  })
+
+                  // Clear all currently loaded batches
+                  setBatches([])
+
+                  // Reload batches for all remaining selected branches
+                  updatedBranches.forEach((branchName) => {
+                    fetchBatches(branchName)
+                  })
+                }}
+              >
+                ❌
+              </span>
+            </div>
           ))}
-        </select>
+        </div>
+
+
+
+        {formData.activity.map((act) => (
+          <div key={act} style={{ marginBottom: "20px" }}>
+            <label style={{ display: "block", marginBottom: "8px" }}>
+              Select Batch for {act}
+            </label>
+
+            <select
+              value=""
+              onChange={(e) => {
+                const selectedBatch = e.target.value
+                if (!selectedBatch) return
+
+                setActivityBatches((prev) => ({
+                  ...prev,
+                  [act]: selectedBatch,
+                }))
+
+                // Reset dropdown after selection
+                e.target.value = ""
+              }}
+            >
+              <option value="">Select Batch for {act}</option>
+
+              {batches
+                .filter((batch) =>
+                  batch.name?.toLowerCase().includes(act.toLowerCase())
+                )
+                .map((batch) => (
+                  <option key={batch.id} value={batch.name}>
+                    {batch.name}
+                  </option>
+                ))}
+            </select>
+
+            {/* Show selected batch as chip */}
+            {activityBatches[act] && (
+              <div
+                className="activity-chip"
+                style={{ marginTop: "10px", display: "inline-flex" }}
+              >
+                {activityBatches[act]}
+                <span
+                  onClick={() =>
+                    setActivityBatches((prev) => {
+                      const updated = { ...prev }
+                      delete updated[act]
+                      return updated
+                    })
+                  }
+                >
+                  ❌
+                </span>
+              </div>
+            )}
+
+            {activityBatches[act] && (
+              <input
+                type="number"
+                placeholder={`Enter monthly fee for ${act}`}
+                value={batchFees[activityBatches[act]] || ""}
+                onChange={(e) =>
+                  setBatchFees((prev) => ({
+                    ...prev,
+                    [activityBatches[act]]: Number(e.target.value)
+                  }))
+                }
+                style={{
+                  marginTop: "10px",
+                  width: "100%",
+                  padding: "10px",
+                  borderRadius: "8px",
+                  border: "1px solid #ddd"
+                }}
+              />
+            )}
+          </div>
+        ))}
 
         <label>Joining Date</label>
         <input
@@ -453,14 +613,7 @@ function Students({ goDashboard }) {
           }
         />
 
-        <input
-          type="text"
-          placeholder="Fees Amount"
-          value={formData.fees}
-          onChange={(e) =>
-            setFormData({ ...formData, fees: e.target.value })
-          }
-        />
+
 
         <label>Birth Date</label>
         <input

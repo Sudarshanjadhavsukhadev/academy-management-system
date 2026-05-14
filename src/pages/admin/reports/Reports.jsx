@@ -52,15 +52,24 @@ function Reports() {
       .from("students")
       .select("*")
 
+    const { data: paidFees } = await supabase
+      .from("student_fees")
+      .select("amount_paid, month, year, status")
+      .eq("status", "Paid")
+
     const { data: manualRevenue } = await supabase
       .from("manual_revenue")
       .select("*")
 
     const totalStudents = students?.length || 0
 
-    const totalRevenue = (students || []).reduce((sum, s) => {
-      return sum + (Number(s.fees) || 0)
-    }, 0)
+    const totalRevenue =
+      (paidFees || []).reduce((sum, row) => {
+        return sum + (Number(row.amount_paid) || 0)
+      }, 0) +
+      (manualRevenue || []).reduce((sum, row) => {
+        return sum + (Number(row.amount) || 0)
+      }, 0)
 
     const { data: trainers } = await supabase
       .from("trainers")
@@ -100,10 +109,10 @@ function Reports() {
     }
 
     // fill revenue correctly
-    students.forEach((s) => {
-      if (!s.fee_month) return
+    (paidFees || []).forEach((row) => {
+      if (!row.month || !row.year) return
 
-      const d = new Date(s.fee_month)
+      const d = new Date(`${row.month} 1, ${row.year}`)
 
       const diffMonths =
         (today.getFullYear() - d.getFullYear()) * 12 +
@@ -111,11 +120,7 @@ function Reports() {
 
       if (diffMonths >= 0 && diffMonths < 12) {
         const index = 11 - diffMonths
-        values[index] +=
-          (
-            Number(s.fees || 0) *
-            Number(s.advance_months || 1)
-          )
+        values[index] += Number(row.amount_paid || 0)
       }
     })
     manualRevenue.forEach((r) => {

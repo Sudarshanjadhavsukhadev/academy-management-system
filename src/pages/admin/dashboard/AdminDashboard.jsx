@@ -193,57 +193,53 @@ function AdminDashboard() {
       .from("courses")
       .select("*", { count: "exact", head: true })
 
-    const { data: students } = await supabase
-      .from("students")
-      .select("fees, fee_month")
-      .ilike("status", "active")
-
+    // ======================================
+    // STUDENT FEES REVENUE (ACTUAL PAYMENTS)
+    // ======================================
     const now = new Date()
-    const currentMonth = now.getMonth()
+    const currentMonth = now.toLocaleString("en-US", {
+      month: "long",
+    })
     const currentYear = now.getFullYear()
 
-    const studentRevenue = (students || [])
-      .filter(s => {
+    const { data: paidFees } = await supabase
+      .from("student_fees")
+      .select("amount_paid, month, year, status")
+      .eq("month", currentMonth)
+      .eq("year", currentYear)
+      .eq("status", "Paid")
 
-        if (!s.fee_month) return false
+    const studentRevenue = (paidFees || []).reduce(
+      (sum, row) => sum + Number(row.amount_paid || 0),
+      0
+    )
 
-        const d = new Date(s.fee_month)
-
-        return (
-          d.getMonth() === currentMonth &&
-          d.getFullYear() === currentYear
-        )
-
-      })
-      .reduce(
-        (sum, s) =>
-          sum + (Number(s.fees) || 0),
-        0
-      )
-
+    // ======================================
+    // MANUAL REVENUE
+    // ======================================
     const { data: manualRevenue } = await supabase
       .from("manual_revenue")
       .select("*")
 
     const manualRevenueTotal = (manualRevenue || [])
-      .filter(r => {
-
+      .filter((r) => {
         if (!r.payment_date) return false
 
         const d = new Date(r.payment_date)
 
         return (
-          d.getMonth() === currentMonth &&
-          d.getFullYear() === currentYear
+          d.getMonth() === now.getMonth() &&
+          d.getFullYear() === now.getFullYear()
         )
-
       })
       .reduce(
-        (sum, r) =>
-          sum + (Number(r.amount) || 0),
+        (sum, r) => sum + Number(r.amount || 0),
         0
       )
 
+    // ======================================
+    // TOTAL MONTHLY REVENUE
+    // ======================================
     const monthlyRevenue =
       studentRevenue + manualRevenueTotal
     setStats({
@@ -770,8 +766,8 @@ function AdminDashboard() {
   const fetchLast12MonthsRevenue = async () => {
 
     const { data } = await supabase
-      .from("students")
-      .select("fees, fee_month")
+      .from("student_fees")
+      .select("amount_paid, payment_date, status")
 
     const { data: manualRevenue } = await supabase
       .from("manual_revenue")
@@ -780,52 +776,41 @@ function AdminDashboard() {
     const monthsMap = {}
     const now = new Date()
 
-    // generate last 12 months in correct order
+    // Generate last 12 months
     for (let i = 11; i >= 0; i--) {
-
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-
       const key = `${d.getFullYear()}-${d.getMonth()}`
-
       monthsMap[key] = 0
     }
 
-    // add revenue
-    data.forEach(s => {
+    // Student fee revenue
+    ; (data || []).forEach(row => {
+      if (!row.payment_date) return
+      if (row.status !== "Paid") return
 
-      if (!s.fee_month) return
-
-      const d = new Date(s.fee_month)
-
+      const d = new Date(row.payment_date)
       const key = `${d.getFullYear()}-${d.getMonth()}`
 
       if (monthsMap.hasOwnProperty(key)) {
-        monthsMap[key] += Number(s.fees) || 0
+        monthsMap[key] += Number(row.amount_paid || 0)
       }
-
-    })
-    manualRevenue.forEach(r => {
-
-      if (!r.payment_date) return
-
-      const d = new Date(r.payment_date)
-
-      const key =
-        `${d.getFullYear()}-${d.getMonth()}`
-
-      if (monthsMap.hasOwnProperty(key)) {
-
-        monthsMap[key] += Number(r.amount) || 0
-
-      }
-
     })
 
-    // final chart data
+      // Manual revenue
+      ; (manualRevenue || []).forEach(r => {
+        if (!r.payment_date) return
+
+        const d = new Date(r.payment_date)
+        const key = `${d.getFullYear()}-${d.getMonth()}`
+
+        if (monthsMap.hasOwnProperty(key)) {
+          monthsMap[key] += Number(r.amount || 0)
+        }
+      })
+
+    // Final chart data
     const result = Object.entries(monthsMap).map(([key, value]) => {
-
       const [year, month] = key.split("-")
-
       const date = new Date(year, month)
 
       return {
@@ -835,11 +820,9 @@ function AdminDashboard() {
         }),
         revenue: value
       }
-
     })
 
     setLast12MonthsRevenue(result)
-
   }
   const fetchManualRevenueHistory = async () => {
 

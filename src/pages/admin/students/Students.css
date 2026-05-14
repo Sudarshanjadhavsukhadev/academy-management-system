@@ -441,6 +441,7 @@ body {
   transform: translateY(-2px);
   box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
 }
+
 .photo-upload {
   display: flex;
   justify-content: center;
@@ -460,6 +461,7 @@ body {
 .photo-preview:hover {
   border-color: #2563eb;
 }
+
 .upload-label {
   font-weight: 600;
   margin-bottom: 6px;
@@ -470,26 +472,28 @@ body {
 input[type="file"] {
   margin-bottom: 20px;
 }
-.crop-modal{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-height:100%;
-background:rgba(0,0,0,0.8);
-display:flex;
-flex-direction:column;
-align-items:center;
-justify-content:center;
-z-index:999;
+
+.crop-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
 }
 
-.crop-container{
-width:400px;
-height:400px;
-position:relative;
-background:black;
+.crop-container {
+  width: 400px;
+  height: 400px;
+  position: relative;
+  background: black;
 }
+
 .selected-activities {
   display: flex;
   gap: 8px;
@@ -511,7 +515,9 @@ background:black;
 
 .activity-chip span {
   cursor: pointer;
-}.system-message {
+}
+
+.system-message {
   position: fixed;
   top: 20px;
   left: 50%;
@@ -522,7 +528,7 @@ background:black;
   border-radius: 10px;
   font-weight: 600;
   z-index: 9999;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   animation: fadeIn 0.3s ease;
 }
 
@@ -531,13 +537,36 @@ background:black;
     opacity: 0;
     transform: translate(-50%, -20px);
   }
+
   to {
     opacity: 1;
     transform: translate(-50%, 0);
   }
 }
 
+/* Make all form controls the same size */
+.registration-card input,
+.registration-card select,
+.registration-card textarea {
+  width: 100%;
+  box-sizing: border-box;
+  /* Includes padding and border inside width */
+  max-width: 100%;
+}
 
+/* Optional: keep consistent height */
+.registration-card input,
+.registration-card select {
+  height: 52px;
+}
 
+/* Ensure the batch chip section also stays inside the card */
+.registration-card .activity-chip {
+  max-width: 100%;
+  word-break: break-word;
+}
 
-
+/* Prevent any child element from overflowing */
+.registration-card>* {
+  max-width: 100%;
+}
