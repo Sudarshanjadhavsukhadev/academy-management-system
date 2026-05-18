@@ -70,6 +70,11 @@ function AdminDashboard() {
   const [last12MonthsRevenue, setLast12MonthsRevenue] = useState([])
   const [dbSize, setDbSize] = useState(0)
   const [tableUsage, setTableUsage] = useState([])
+  const [showStudentsModal, setShowStudentsModal] = useState(false)
+  const [showRevenueModal, setShowRevenueModal] = useState(false)
+
+  const [studentsList, setStudentsList] = useState([])
+  const [revenueList, setRevenueList] = useState([])
   const DB_LIMIT = 500 * 1024 * 1024
 
   useEffect(() => {
@@ -574,6 +579,53 @@ function AdminDashboard() {
 
   }
 
+  const fetchStudentsList = async () => {
+    const { data, error } = await supabase
+      .from("students")
+      .select("id, name, batch, branch, fees")
+      .ilike("status", "active")
+      .order("name")
+
+    if (error) {
+      console.error(error)
+      return
+    }
+
+    setStudentsList(data || [])
+  }
+  const fetchRevenueDetails = async () => {
+    const today = new Date()
+
+    const currentMonth = today.toLocaleString("en-US", {
+      month: "long"
+    }) // Example: "May"
+
+    const currentYear = today.getFullYear() // Example: 2026
+
+    const { data, error } = await supabase
+      .from("student_fees")
+      .select(`
+      id,
+      student_name,
+      amount_paid,
+      payment_date,
+      month,
+      year
+    `)
+      .eq("month", currentMonth)
+      .eq("year", currentYear)
+      .order("payment_date", { ascending: false })
+
+    if (error) {
+      console.error("Revenue details error:", error)
+      return
+    }
+
+    console.log("Revenue Details:", data)
+
+    setRevenueList(data || [])
+  }
+
   const removeSingleNotification = (index) => {
 
     const notif = notifications[index]
@@ -923,7 +975,15 @@ function AdminDashboard() {
 
               <div className="stats-cards">
 
-                <div className="stat-card">
+                <div
+                  className="stat-card"
+                  onDoubleClick={async () => {
+                    await fetchStudentsList()
+                    setShowStudentsModal(true)
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Double click to view all students"
+                >
                   <span>Total Students</span>
                   <h2>{stats.students}</h2>
                 </div>
@@ -944,21 +1004,14 @@ function AdminDashboard() {
                 <div
                   className="stat-card"
                   onDoubleClick={async () => {
-
-                    await fetchManualRevenueHistory()
-
-                    setShowManualRevenueBox(true)
-
+                    await fetchRevenueDetails()
+                    setShowRevenueModal(true)
                   }}
-                  style={{
-                    cursor: "pointer"
-                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Double click to view fees collection details"
                 >
-
                   <span>Total Revenue</span>
-
                   <h2>₹{stats.revenue}</h2>
-
                 </div>
 
 
@@ -1487,6 +1540,113 @@ function AdminDashboard() {
           </div>
         )
       }
+
+      {showStudentsModal && (
+        <div className="modal-overlay">
+          <div
+            className="modal"
+            style={{
+              width: "700px",
+              maxHeight: "80vh",
+              overflowY: "auto"
+            }}
+          >
+            <h3>All Active Students</h3>
+
+            {studentsList.length === 0 ? (
+              <p>No students found.</p>
+            ) : (
+              studentsList.map((student) => (
+                <div
+                  key={student.id}
+                  style={{
+                    padding: "12px",
+                    marginBottom: "10px",
+                    background: "#f9fafb",
+                    borderRadius: "8px",
+                    display: "flex",
+                    justifyContent: "space-between"
+                  }}
+                >
+                  <div>
+                    <strong>{student.name}</strong>
+                    <div style={{ fontSize: "12px", color: "#6b7280" }}>
+                      {student.batch} • {student.branch}
+                    </div>
+                  </div>
+                  <strong>₹{student.fees}</strong>
+                </div>
+              ))
+            )}
+
+            <button
+              className="cancel-btn"
+              onClick={() => setShowStudentsModal(false)}
+              style={{ marginTop: "20px" }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showRevenueModal && (
+        <div className="modal-overlay">
+          <div
+            className="modal"
+            style={{
+              width: "800px",
+              maxHeight: "80vh",
+              overflowY: "auto"
+            }}
+          >
+            <h3>Fees Collection Details</h3>
+
+            {revenueList.length === 0 ? (
+              <p>No payments found.</p>
+            ) : (
+              revenueList.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    padding: "12px",
+                    marginBottom: "10px",
+                    background: "#f9fafb",
+                    borderRadius: "8px",
+                    display: "flex",
+                    justifyContent: "space-between"
+                  }}
+                >
+                  <div>
+                    <strong>
+                      {item.student_name || "Unknown Student"}
+                    </strong>
+
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7280"
+                      }}
+                    >
+                      {item.month} {item.year} • {item.payment_date}
+                    </div>
+                  </div>
+
+                  <strong>₹{item.amount_paid}</strong>
+                </div>
+              ))
+            )}
+
+            <button
+              className="cancel-btn"
+              onClick={() => setShowRevenueModal(false)}
+              style={{ marginTop: "20px" }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
 
     </div >
