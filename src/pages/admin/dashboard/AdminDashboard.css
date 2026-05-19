@@ -350,18 +350,40 @@
   padding: 18px;
   border-radius: 12px;
   text-align: center;
+
+  /* Make all cards equal height and align content */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+
+  /* Fixed height for all cards */
+  min-height: 170px;
 }
 
 .stat-card span {
   font-size: 15px;
   color: #141415;
+  line-height: 1.4;
+  font-weight: 500;
+
+  /* Reserve same height for label (2 lines) */
+  min-height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .stat-card h2 {
-  font-size: 20;
-  margin-top: 5px;
-  font-weight: 600;
+  font-size: 48px;
+  margin-top: auto;
+  /* Push number to consistent position */
+  margin-bottom: 0;
+  font-weight: 700;
   color: #101011;
+  line-height: 1;
 }
 
 /* RIGHT PANEL WRAPPER */
@@ -838,6 +860,7 @@
     opacity: 1;
   }
 }
+
 .chart-card {
   background: #ffffff;
   padding: 24px 26px;
@@ -845,8 +868,10 @@
   border: 1px solid #e5e7eb;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
 
-  height: 420px;   /* ADD THIS */
+  height: 420px;
+  /* ADD THIS */
 }
+
 .revenue-chart {
   height: 420px;
 }
