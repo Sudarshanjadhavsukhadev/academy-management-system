@@ -345,19 +345,21 @@
   color: #f0f0f3;
 }
 
+/* ================= STAT CARDS ================= */
+
 .stat-card {
   background: #f8fafc;
   padding: 18px;
   border-radius: 12px;
   text-align: center;
 
-  /* Make all cards equal height and align content */
+  /* Perfect alignment */
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
   align-items: center;
+  justify-content: flex-start;
 
-  /* Fixed height for all cards */
+  /* Same height for all cards */
   min-height: 170px;
 }
 
@@ -365,9 +367,9 @@
   font-size: 15px;
   color: #141415;
   line-height: 1.4;
-  font-weight: 500;
+  font-weight: 600;
 
-  /* Reserve same height for label (2 lines) */
+  /* Fixed height so all labels take equal space */
   min-height: 48px;
 
   display: flex;
@@ -376,14 +378,26 @@
   text-align: center;
 }
 
+/* NUMBERS */
 .stat-card h2 {
-  font-size: 48px;
   margin-top: auto;
-  /* Push number to consistent position */
   margin-bottom: 0;
-  font-weight: 700;
-  color: #101011;
+
+  /* Normal and professional size */
+  font-size: 28px;
+  font-weight: 600;
+  /* Changed from 800 to 600 */
   line-height: 1;
+
+  color: #0f172a;
+  letter-spacing: 0;
+}
+
+/* Revenue card */
+.stat-card:last-child h2 {
+  font-size: 22px;
+  font-weight: 600;
+  /* Changed from 800 to 600 */
 }
 
 /* RIGHT PANEL WRAPPER */
@@ -874,4 +888,42 @@
 
 .revenue-chart {
   height: 420px;
+}
+
+/* ========================================
+   DASHBOARD BACKGROUND LOGO
+   ONLY SYMBOL (NO TEXT) - SHIFTED RIGHT
+======================================== */
+
+.dashboard-background-logo {
+  position: fixed;
+
+  /* Move slightly to the RIGHT */
+  top: 50%;
+  left: 16%;
+
+  /* Center the image */
+  transform: translate(-50%, -50%);
+
+  /* Smaller size so only the emblem is visible */
+  width: 32vw;
+  max-width: 520px;
+  min-width: 260px;
+  height: auto;
+
+  /* Elegant visibility */
+  opacity: 0.16;
+
+  /* Blue theme effect */
+  filter:
+    hue-rotate(215deg)
+    saturate(2.2)
+    brightness(1.35)
+    contrast(1.15)
+    drop-shadow(0 0 80px rgba(79, 70, 229, 0.35));
+
+  /* Keep behind all content */
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
 }

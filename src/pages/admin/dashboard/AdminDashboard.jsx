@@ -32,6 +32,9 @@ ChartJS.register(
   Legend
 )
 
+const dashboardLogo =
+  "https://hawihdxdunxhzdaydgyb.supabase.co/storage/v1/object/public/assets/logos/mjk-logo.png";
+
 function AdminDashboard() {
   const [rawData, setRawData] = useState([])
   const [columns, setColumns] = useState([])
@@ -923,6 +926,11 @@ function AdminDashboard() {
 
   return (
     <div className="admin-dashboard">
+      <img
+        src={dashboardLogo}
+        alt="MJK Background Logo"
+        className="dashboard-background-logo"
+      />
       {/* Header */}
       <div className="dashboard-header">
         <h1 className="dashboard-title">Admin Panel</h1>
