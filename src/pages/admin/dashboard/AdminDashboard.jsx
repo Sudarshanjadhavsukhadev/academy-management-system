@@ -209,12 +209,29 @@ function AdminDashboard() {
 
     const { data: paidFees } = await supabase
       .from("student_fees")
-      .select("amount_paid, month, year, status")
+      .select(
+        "student_id, student_name, amount_paid, month, year, status"
+      )
       .eq("month", currentMonth)
       .eq("year", currentYear)
       .eq("status", "Paid")
 
-    const studentRevenue = (paidFees || []).reduce(
+    // Remove duplicate payments for same student in same month/year
+    const uniquePaidFees = []
+    const seen = new Set()
+
+      ; (paidFees || []).forEach((row) => {
+        const key =
+          `${row.student_id || row.student_name}-${row.month}-${row.year}`
+
+        if (!seen.has(key)) {
+          seen.add(key)
+          uniquePaidFees.push(row)
+        }
+      })
+
+    // Calculate revenue using unique payments only
+    const studentRevenue = uniquePaidFees.reduce(
       (sum, row) => sum + Number(row.amount_paid || 0),
       0
     )
@@ -594,37 +611,52 @@ function AdminDashboard() {
     setStudentsList(data || [])
   }
   const fetchRevenueDetails = async () => {
-    const today = new Date()
+    const today = new Date();
 
     const currentMonth = today.toLocaleString("en-US", {
       month: "long"
-    }) // Example: "May"
+    });
 
-    const currentYear = today.getFullYear() // Example: 2026
+    const currentYear = today.getFullYear();
 
     const { data, error } = await supabase
       .from("student_fees")
       .select(`
       id,
+      student_id,
       student_name,
       amount_paid,
       payment_date,
       month,
-      year
+      year,
+      status
     `)
       .eq("month", currentMonth)
       .eq("year", currentYear)
-      .order("payment_date", { ascending: false })
+      .eq("status", "Paid")
+      .order("payment_date", { ascending: false });
 
     if (error) {
-      console.error("Revenue details error:", error)
-      return
+      console.error("Revenue details error:", error);
+      return;
     }
 
-    console.log("Revenue Details:", data)
+    // ✅ Remove duplicate payments for same student in same month/year
+    const uniquePayments = [];
+    const seen = new Set();
 
-    setRevenueList(data || [])
-  }
+    (data || []).forEach((item) => {
+      const key =
+        `${item.student_id || item.student_name}-${item.month}-${item.year}`;
+
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniquePayments.push(item);
+      }
+    });
+
+    setRevenueList(uniquePayments);
+  };
 
   const removeSingleNotification = (index) => {
 

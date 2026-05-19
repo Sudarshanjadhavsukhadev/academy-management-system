@@ -10,14 +10,25 @@ function Revenue() {
     new Date().getMonth() + 1
   )
   const [manualRevenue, setManualRevenue] = useState([])
+  const [feePayments, setFeePayments] = useState([])
   const fetchRevenue = async () => {
 
     setLoading(true)
 
     const { data, error } = await supabase
-      .from("students")
-      .select("*")
-      .order("last_payment_date", { ascending: false })
+      .from("student_fees")
+      .select(`
+    id,
+    student_id,
+    student_name,
+    amount_paid,
+    payment_date,
+    month,
+    year,
+    status
+  `)
+      .eq("status", "Paid")
+      .order("payment_date", { ascending: false })
 
     const { data: manualData } = await supabase
       .from("manual_revenue")
@@ -27,7 +38,22 @@ function Revenue() {
     if (error) {
       console.log(error)
     } else {
-      setStudents(data || [])
+      // Remove duplicate payments for same student in same month/year
+      const uniquePayments = []
+      const seen = new Set()
+
+        ; (data || []).forEach((item) => {
+          const key =
+            `${item.student_id || item.student_name}-${item.month}-${item.year}`
+
+          if (!seen.has(key)) {
+            seen.add(key)
+            uniquePayments.push(item)
+          }
+        })
+
+      setFeePayments(uniquePayments)
+      setStudents([]) // optional, keeps old state unused
       setManualRevenue(manualData || [])
     }
 
@@ -51,27 +77,24 @@ function Revenue() {
 
   }, [])
 
-  const filteredStudents = students.filter(student => {
-
-    if (!student.last_payment_date) return false
+  const filteredPayments = feePayments.filter((payment) => {
+    if (!payment.payment_date) return false
 
     const paymentMonth =
-      new Date(student.last_payment_date).getMonth() + 1
+      new Date(payment.payment_date).getMonth() + 1
 
     return paymentMonth === Number(selectedMonth)
-
   })
-
   const downloadExcel = () => {
 
-    const rows = filteredStudents.map((student, index) => ({
+    const rows = filteredPayments.map((payment, index) => ({
       "Invoice No": `INV-${index + 1}`,
-      "Student Name": student.name || "-",
-      "Join Date": student.join_date || "-",
-      "Last Paid": student.last_payment_date || "-",
-      "Fees": `₹${student.fees || 0}`,
-      "Batch": student.batch || "-",
-      "Branch": student.branch || "-"
+      "Student Name": payment.student_name || "-",
+      "Join Date": "-",
+      "Last Paid": payment.payment_date || "-",
+      "Fees": `₹${payment.amount_paid || 0}`,
+      "Batch": "Student Fees",
+      "Branch": "Auto"
     }))
 
     const worksheet = XLSX.utils.json_to_sheet(rows)
@@ -209,18 +232,7 @@ function Revenue() {
           <h3>Total Paid Students</h3>
 
           <p style={numberStyle}>
-            ₹{
-              filteredStudents
-                .reduce(
-                  (sum, s) =>
-                    sum +
-                    (
-                      Number(s.fees || 0) *
-                      Number(s.advance_months || 1)
-                    ),
-                  0
-                )
-            }
+            {filteredPayments.length}
           </p>
         </div>
 
@@ -230,9 +242,9 @@ function Revenue() {
           <p style={numberStyle}>
             ₹{
 
-              filteredStudents.reduce(
-                (sum, s) =>
-                  sum + Number(s.fees || 0),
+              filteredPayments.reduce(
+                (sum, payment) =>
+                  sum + Number(payment.amount_paid || 0),
                 0
               )
 
@@ -314,7 +326,13 @@ function Revenue() {
                 </td>
               </tr>
 
-            ) : students.filter(s => s.last_payment_date).length === 0 ? (
+            ) : filteredPayments.length === 0 &&
+              manualRevenue.filter(r => {
+                if (!r.payment_date) return false
+                const paymentMonth =
+                  new Date(r.payment_date).getMonth() + 1
+                return paymentMonth === Number(selectedMonth)
+              }).length === 0 ? (
 
               <tr>
                 <td
@@ -330,43 +348,41 @@ function Revenue() {
 
             ) : (
 
-              filteredStudents.map((student, index) => (
+              filteredPayments.map((payment, index) => (
 
                 <tr
-                  key={student.id}
+                  key={payment.id}
                   style={{
                     borderBottom: "1px solid #eee"
                   }}
                 >
-
                   <td style={tdStyle}>
                     INV-{index + 1}
                   </td>
 
                   <td style={tdStyle}>
-                    {student.name || "-"}
+                    {payment.student_name || "-"}
                   </td>
 
                   <td style={tdStyle}>
-                    {student.join_date || "-"}
+                    -
                   </td>
 
                   <td style={tdStyle}>
-                    {student.last_payment_date || "-"}
+                    {payment.payment_date || "-"}
                   </td>
 
                   <td style={tdStyle}>
-                    ₹{student.fees || 0}
+                    ₹{payment.amount_paid || 0}
                   </td>
 
                   <td style={tdStyle}>
-                    {student.batch || "-"}
+                    Student Fees
                   </td>
 
                   <td style={tdStyle}>
-                    {student.branch || "-"}
+                    Auto
                   </td>
-
                 </tr>
 
               ))

@@ -52,10 +52,32 @@ function Reports() {
       .from("students")
       .select("*")
 
-    const { data: paidFees } = await supabase
+    const { data: paidFeesRaw } = await supabase
       .from("student_fees")
-      .select("amount_paid, month, year, status")
+      .select(`
+    student_id,
+    student_name,
+    amount_paid,
+    month,
+    year,
+    status,
+    payment_date
+  `)
       .eq("status", "Paid")
+
+    // Remove duplicate payments for same student in same month/year
+    const paidFees = []
+    const seen = new Set()
+
+      ; (paidFeesRaw || []).forEach((row) => {
+        const key =
+          `${row.student_id || row.student_name}-${row.month}-${row.year}`
+
+        if (!seen.has(key)) {
+          seen.add(key)
+          paidFees.push(row)
+        }
+      })
 
     const { data: manualRevenue } = await supabase
       .from("manual_revenue")

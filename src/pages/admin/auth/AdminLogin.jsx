@@ -3,8 +3,11 @@ import { useNavigate, Link } from "react-router-dom"
 import { supabase } from "../../../services/supabase"
 import "./AdminLogin.css"
 
-function AdminLogin() {
+// ✅ Logo loaded directly from Supabase Storage (global URL)
+const logo =
+  "https://hawihdxdunxhzdaydgyb.supabase.co/storage/v1/object/public/assets/logos/mjk-logo.png"
 
+function AdminLogin() {
   const navigate = useNavigate()
 
   const [email, setEmail] = useState("")
@@ -14,24 +17,22 @@ function AdminLogin() {
   const [loading, setLoading] = useState(false)
 
   const handleLogin = async (e) => {
-
     e.preventDefault()
 
     setError("")
     setLoading(true)
 
     try {
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password
+        password,
       })
 
       if (error) throw error
 
       const user = data.user
 
-      // ⭐ check admin role
+      // Check admin role
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("role")
@@ -41,23 +42,17 @@ function AdminLogin() {
       if (profileError) throw profileError
 
       if (profile.role !== "admin") {
-
         await supabase.auth.signOut()
-
         setError("Access denied. Not an admin.")
         setLoading(false)
         return
       }
 
-      // ⭐ success
+      // Success
       localStorage.setItem("isAdminLoggedIn", "true")
-
       navigate("/admin", { replace: true })
-
     } catch (err) {
-
       setError(err.message || "Login failed")
-
     }
 
     setLoading(false)
@@ -65,21 +60,25 @@ function AdminLogin() {
 
   return (
     <div className="admin-login-page">
+      {/* Background MJK Logo */}
+      <img
+        src={logo}
+        alt="MJK Logo"
+        className="login-background-logo"
+      />
 
       <div className="login-card">
-
         <h2>Admin Login</h2>
         <p>Secure access to MJK Admin Panel</p>
 
         {error && <div className="error">{error}</div>}
 
         <form onSubmit={handleLogin}>
-
           <input
             type="email"
             placeholder="Admin Email"
             value={email}
-            onChange={(e)=>setEmail(e.target.value)}
+            onChange={(e) => setEmail(e.target.value)}
             required
           />
 
@@ -88,11 +87,11 @@ function AdminLogin() {
               type={showPassword ? "text" : "password"}
               placeholder="Password"
               value={password}
-              onChange={(e)=>setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               required
             />
 
-            <span onClick={()=>setShowPassword(!showPassword)}>
+            <span onClick={() => setShowPassword(!showPassword)}>
               {showPassword ? "Hide" : "Show"}
             </span>
           </div>
@@ -100,7 +99,6 @@ function AdminLogin() {
           <button type="submit" disabled={loading}>
             {loading ? "Logging in..." : "Login"}
           </button>
-
         </form>
 
         <div className="links">
@@ -108,9 +106,7 @@ function AdminLogin() {
             Forgot password?
           </Link>
         </div>
-
       </div>
-
     </div>
   )
 }
