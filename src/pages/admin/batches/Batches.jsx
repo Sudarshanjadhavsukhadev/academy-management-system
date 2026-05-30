@@ -122,30 +122,42 @@ function Batches({ searchStudent }) {
 
 
   const fetchStudentStrength = async (batchName) => {
-    const { count, error } = await supabase
-      .from("students")
-      .select("*", { count: "exact", head: true })
-      .contains("batch", [batchName])
-
-    if (error) {
-      console.error(error)
-    } else {
-      setStudentStrength(count)
-    }
-  }
-  const fetchBatchStudents = async (batchName) => {
 
     const { data, error } = await supabase
       .from("students")
-      .select("*")
-      .or(`batch.eq.${batchName},batch_list.cs.{${batchName}}`)
+      .select("id,batch,batch_list")
 
     if (error) {
       console.error(error)
       return
     }
 
-    setBatchStudents(data || [])
+    const filtered = (data || []).filter(student =>
+      student.batch === batchName ||
+      (Array.isArray(student.batch_list) &&
+        student.batch_list.includes(batchName))
+    )
+
+    setStudentStrength(filtered.length)
+  }
+  const fetchBatchStudents = async (batchName) => {
+
+    const { data, error } = await supabase
+      .from("students")
+      .select("*")
+
+    if (error) {
+      console.error(error)
+      return
+    }
+
+    const filtered = (data || []).filter(student =>
+      student.batch === batchName ||
+      (Array.isArray(student.batch_list) &&
+        student.batch_list.includes(batchName))
+    )
+
+    setBatchStudents(filtered)
   }
   const fetchLastAttendance = async (batchName) => {
 
