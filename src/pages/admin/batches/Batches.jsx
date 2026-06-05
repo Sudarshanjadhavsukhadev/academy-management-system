@@ -125,7 +125,7 @@ function Batches({ searchStudent }) {
 
     const { data, error } = await supabase
       .from("students")
-      .select("id,batch,batch_list")
+      .select("id,batch,batch_list,status,name")
 
     if (error) {
       console.error(error)
@@ -137,8 +137,12 @@ function Batches({ searchStudent }) {
       (Array.isArray(student.batch_list) &&
         student.batch_list.includes(batchName))
     )
-
-    setStudentStrength(filtered.length)
+    console.log("COUNTED STUDENTS", filtered)
+    setStudentStrength(
+      filtered.filter(
+        student => student.status?.toLowerCase() !== "disabled"
+      ).length
+    )
   }
   const fetchBatchStudents = async (batchName) => {
 

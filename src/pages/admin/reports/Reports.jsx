@@ -177,36 +177,43 @@ function Reports() {
     })
     /* ===== COURSE ENROLLMENT ===== */
 
+    const { data: activitiesList } = await supabase
+      .from("courses")
+      .select("name")
+
     const courseMap = {}
 
-    students.forEach((s) => {
+    // Create labels from Activities page
+    activitiesList?.forEach((activity) => {
+      courseMap[activity.name] = 0
+    })
 
-      let course = s.activity || "Unknown"
+    students.forEach((student) => {
 
-      // FIX ARRAY FORMAT
-      if (typeof course === "string") {
+      let studentActivities = student.activity || []
 
+      // Handle stringified arrays
+      if (typeof studentActivities === "string") {
         try {
-
-          const parsed = JSON.parse(course)
-
-          if (Array.isArray(parsed)) {
-            course = parsed.join(", ")
-          }
-
+          studentActivities = JSON.parse(studentActivities)
         } catch {
-
-          course = course
-            .replace("[", "")
-            .replace("]", "")
-            .replace(/"/g, "")
-
+          studentActivities = [studentActivities]
         }
-
       }
 
-      courseMap[course] =
-        (courseMap[course] || 0) + 1
+      if (!Array.isArray(studentActivities)) {
+        studentActivities = [studentActivities]
+      }
+
+      studentActivities.forEach((activity) => {
+
+        const cleanActivity = activity?.toString().trim()
+
+        if (courseMap.hasOwnProperty(cleanActivity)) {
+          courseMap[cleanActivity]++
+        }
+
+      })
 
     })
 

@@ -19,7 +19,9 @@ function Trainers() {
   const [confirmActiveTrainer, setConfirmActiveTrainer] = useState(null)
   const [confirmEditTrainer, setConfirmEditTrainer] = useState(null)
   const [allBatches, setAllBatches] = useState([])
+  const [expandedTrainer, setExpandedTrainer] = useState(null)
   const [selectedBatches, setSelectedBatches] = useState([])
+  const [batchPopupTrainer, setBatchPopupTrainer] = useState(null)
 
   const fetchTrainers = async () => {
     const { data, error } = await supabase
@@ -270,11 +272,12 @@ function Trainers() {
                   <td>{trainer.email}</td>
 
                   <td>
-                    {trainer.batches?.map(b => (
-                      <span className="batch-chip" key={b.batch_name}>
-                        {b.batch_name}
-                      </span>
-                    ))}
+                    <button
+                      className="batch-dropdown-btn"
+                      onClick={() => setBatchPopupTrainer(trainer)}
+                    >
+                      View ({trainer.batches?.length || 0})
+                    </button>
                   </td>
 
                   <td>
@@ -590,6 +593,37 @@ function Trainers() {
 
           </div>
 
+        </div>
+      )}
+      {batchPopupTrainer && (
+        <div className="branch-popup-overlay">
+          <div className="branch-popup batch-popup">
+
+            <h2>
+              {batchPopupTrainer.name}'s Batches
+            </h2>
+
+            <div className="batch-popup-list">
+
+              {batchPopupTrainer.batches?.map((b) => (
+                <div
+                  key={b.batch_name}
+                  className="batch-popup-item"
+                >
+                  {b.batch_name}
+                </div>
+              ))}
+
+            </div>
+
+            <button
+              className="add-btn"
+              onClick={() => setBatchPopupTrainer(null)}
+            >
+              Close
+            </button>
+
+          </div>
         </div>
       )}
     </div>
