@@ -35,6 +35,7 @@ ChartJS.register(
 function Batches({ searchStudent }) {
   const navigate = useNavigate()
   const [batches, setBatches] = useState([])
+  const [allBatches, setAllBatches] = useState([])
   const [trainerName, setTrainerName] = useState("")
   const [selectedBranch, setSelectedBranch] = useState("")
   const [branches, setBranches] = useState([])
@@ -83,6 +84,17 @@ function Batches({ searchStudent }) {
   const [editCroppedAreaPixels, setEditCroppedAreaPixels] = useState(null)
   const [showEditCropModal, setShowEditCropModal] = useState(false)
   const [photoUploading, setPhotoUploading] = useState(false)
+  const fetchAllBatches = async () => {
+    const { data, error } = await supabase
+      .from("batches")
+      .select("*")
+
+    if (error) {
+      console.error(error)
+    } else {
+      setAllBatches(data)
+    }
+  }
   const fetchBranches = async () => {
     const { data, error } = await supabase
       .from("branches")
@@ -358,6 +370,7 @@ function Batches({ searchStudent }) {
     fetchBranches()
     fetchTrainers()
     fetchCourses()
+    fetchAllBatches()
   }, [])
   useEffect(() => {
 
@@ -427,42 +440,74 @@ function Batches({ searchStudent }) {
     setAttendance({})           // 🔥 clear old attendance
 
     fetchBatchStudents(selectedBatch.name)
+
     fetchStudentStrength(selectedBatch.name)
     fetchLastAttendance(selectedBatch.name)
 
   }, [selectedBatch?.id])
 
-  useEffect(() => {
+  const loadBatches = async () => {
 
-    if (!searchStudent) return
+    const batchToOpen =
+      searchStudent.selectedBatch ||
+      searchStudent.batch
+
+    const batchRow = allBatches.find(
+      b => b.name === batchToOpen
+    )
+
+    console.log("SELECTED BATCH =", batchToOpen)
+    console.log("BATCH ROW =", batchRow)
+
+    if (!batchRow) return
 
     const branchRow = branches.find(
-      b => b.name === searchStudent.branch
+      b => b.name === batchRow.branch
     )
+
+    console.log("REAL BRANCH =", branchRow)
 
     if (!branchRow) return
 
     setShowPopup(false)
     setSelectedBranch(branchRow.id)
 
-    fetchBatches(branchRow.id)
-
-  }, [searchStudent, branches])
+    await fetchBatches(branchRow.id)
+  }
 
   useEffect(() => {
 
-    if (!searchStudent || batches.length === 0) return
+    if (!searchStudent || allBatches.length === 0 || branches.length === 0)
+      return
 
-    const studentBatch = batches.find(
-      batch => batch.name === searchStudent.batch
+    const batchToOpen =
+      searchStudent.selectedBatch ||
+      searchStudent.batch
+
+    const batchRow = allBatches.find(
+      b =>
+        b.name?.trim().toLowerCase() ===
+        batchToOpen?.trim().toLowerCase()
     )
 
-    if (studentBatch) {
-      setSelectedBatch(studentBatch)
-      setActiveTab("students")
-    }
+    if (!batchRow) return
 
-  }, [batches])
+    const branchRow = branches.find(
+      b => b.name === batchRow.branch
+    )
+
+    if (!branchRow) return
+
+    setSelectedBranch(branchRow.id)
+
+    fetchBatches(branchRow.id)
+
+    setTimeout(() => {
+      setSelectedBatch(batchRow)
+      setActiveTab("students")
+    }, 300)
+
+  }, [searchStudent, allBatches, branches])
   const fetchBatches = async (branchId) => {
 
     const branchRow = branches.find(b => b.id === branchId)
@@ -2120,21 +2165,48 @@ function Batches({ searchStudent }) {
                   </div>
                   <div className="form-group">
                     <label>Branch</label>
-                    <input
+                    <select
                       value={editingStudent.branch || ""}
                       onChange={(e) =>
-                        setEditingStudent({ ...editingStudent, branch: e.target.value })
+                        setEditingStudent({
+                          ...editingStudent,
+                          branch: e.target.value,
+                          batch: "" // reset batch when branch changes
+                        })
                       }
-                    />
+                    >
+                      <option value="">Select Branch</option>
+
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.name}>
+                          {branch.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="form-group">
                     <label>Batch</label>
-                    <input
+                    <select
                       value={editingStudent.batch || ""}
                       onChange={(e) =>
-                        setEditingStudent({ ...editingStudent, batch: e.target.value })
+                        setEditingStudent({
+                          ...editingStudent,
+                          batch: e.target.value
+                        })
                       }
-                    />
+                    >
+                      <option value="">Select Batch</option>
+
+                      {allBatches
+                        .filter(
+                          batch => batch.branch === editingStudent.branch
+                        )
+                        .map((batch) => (
+                          <option key={batch.id} value={batch.name}>
+                            {batch.name}
+                          </option>
+                        ))}
+                    </select>
                   </div>
                   <div className="form-group">
                     <label>Joining Date</label>
@@ -2161,7 +2233,8 @@ function Batches({ searchStudent }) {
                   <div className="form-group">
                     <label>Fees</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={editingStudent.fees || ""}
                       onChange={(e) =>
                         setEditingStudent({ ...editingStudent, fees: e.target.value })
@@ -2210,6 +2283,7 @@ function Batches({ searchStudent }) {
                         activity: editingStudent.activity,
                         branch: editingStudent.branch,
                         batch: editingStudent.batch,
+                        batch_list: [editingStudent.batch],
                         join_date: editingStudent.join_date,
                         fees: editingStudent.fees,
                         dob: editingStudent.dob,

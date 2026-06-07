@@ -21,6 +21,42 @@ function InactiveStudents() {
     fetchInactiveStudents()
   }, [])
 
+  const activateStudent = async (studentId) => {
+    const { error } = await supabase
+      .from("students")
+      .update({ status: "Active" })
+      .eq("id", studentId)
+
+    if (error) {
+      alert("Failed to activate student")
+      console.log(error)
+    } else {
+      fetchInactiveStudents()
+      alert("Student Activated Successfully")
+    }
+  }
+
+  const deleteStudent = async (studentId) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to permanently delete this student?"
+    )
+
+    if (!confirmDelete) return
+
+    const { error } = await supabase
+      .from("students")
+      .delete()
+      .eq("id", studentId)
+
+    if (error) {
+      alert("Failed to delete student")
+      console.log(error)
+    } else {
+      fetchInactiveStudents()
+      alert("Student Deleted Successfully")
+    }
+  }
+
   return (
     <div style={{ padding: "20px" }}>
 
@@ -38,6 +74,7 @@ function InactiveStudents() {
               <th>Batch</th>
               <th>Joining Date</th>
               <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
 
@@ -53,6 +90,22 @@ function InactiveStudents() {
                 <td>
                   <button className="disable-btn">
                     Disabled
+                  </button>
+                </td>
+
+                <td>
+                  <button
+                    className="activate-btn"
+                    onClick={() => activateStudent(student.id)}
+                  >
+                    Activate
+                  </button>
+
+                  <button
+                    className="delete-btn"
+                    onClick={() => deleteStudent(student.id)}
+                  >
+                    Delete
                   </button>
                 </td>
 

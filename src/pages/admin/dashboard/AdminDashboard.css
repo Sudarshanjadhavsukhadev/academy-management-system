@@ -4,8 +4,8 @@
   min-height: 100vh;
   padding: 40px 60px;
   background: linear-gradient(135deg, #eef2ff, #f8fafc);
-  font-family: 'Inter', system-ui, sans-serif;
-  color: #0f172a;
+
+
 }
 
 /* ================= HEADER ================= */
@@ -14,7 +14,17 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 25px;
+
+  position: sticky;
+  top: 0;
+  z-index: 100;
+
+  background: rgba(248, 250, 252, 0.95);
+  backdrop-filter: blur(8px);
+
+  padding: 12px 0;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .dashboard-title {
@@ -916,14 +926,73 @@
 
   /* Blue theme effect */
   filter:
-    hue-rotate(215deg)
-    saturate(2.2)
-    brightness(1.35)
-    contrast(1.15)
-    drop-shadow(0 0 80px rgba(79, 70, 229, 0.35));
+    hue-rotate(215deg) saturate(2.2) brightness(1.35) contrast(1.15) drop-shadow(0 0 80px rgba(79, 70, 229, 0.35));
 
   /* Keep behind all content */
   pointer-events: none;
   user-select: none;
   z-index: 0;
+}
+
+/* ===== MULTI BATCH POPUP ===== */
+
+.batch-selector-modal {
+  width: 550px;
+  max-width: 90%;
+  padding: 35px;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
+  text-align: center;
+}
+
+.batch-selector-title {
+  font-size: 32px;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 15px;
+}
+
+.batch-selector-subtitle {
+  font-size: 16px;
+  color: #6b7280;
+  margin-bottom: 25px;
+}
+
+.batch-option-btn {
+  width: 100%;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.batch-option-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(79, 70, 229, 0.35);
+}
+
+.batch-option-btn:last-of-type {
+  margin-bottom: 20px;
+}
+
+.batch-cancel-btn {
+  padding: 12px 28px;
+  border: none;
+  border-radius: 12px;
+  background: #e5e7eb;
+  color: #111827;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.batch-cancel-btn:hover {
+  background: #d1d5db;
 }

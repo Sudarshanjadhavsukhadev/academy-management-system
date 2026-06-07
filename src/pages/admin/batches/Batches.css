@@ -1191,10 +1191,9 @@ select:focus {
 .profile-form-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  column-gap: 20px;
-  row-gap: 14px;
-  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 24px;
+  width: 100%;
 }
 
 .form-group {
@@ -1445,13 +1444,16 @@ select:focus {
 .top-control-bar button:active {
   transform: scale(0.95);
 }
+
 /* RIGHT SIDE CONTROLS */
 .right-controls {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-left: auto;   /* 🔥 THIS PUSHES IT TO RIGHT */
+  margin-left: auto;
+  /* 🔥 THIS PUSHES IT TO RIGHT */
 }
+
 .paid-row {
   background: #dcfce7 !important;
 }

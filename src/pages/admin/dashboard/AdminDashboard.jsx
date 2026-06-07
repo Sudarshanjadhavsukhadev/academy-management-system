@@ -43,6 +43,8 @@ function AdminDashboard() {
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [analysisDone, setAnalysisDone] = useState(false)
+  const [showBatchSelector, setShowBatchSelector] = useState(false)
+  const [selectedStudentBatches, setSelectedStudentBatches] = useState([])
   const [activeTab, setActiveTab] = useState("dashboard")
   const [searchQuery, setSearchQuery] = useState("")
   const [openBatchModal, setOpenBatchModal] = useState(false)
@@ -122,7 +124,7 @@ function AdminDashboard() {
 
     const { data, error } = await supabase
       .from("students")
-      .select("*")
+      .select("*, batch_list")
       .ilike("name", `%${query}%`)
 
     if (error) {
@@ -130,6 +132,7 @@ function AdminDashboard() {
     } else {
       setSearchResults(data)
     }
+
 
   }
 
@@ -988,25 +991,68 @@ function AdminDashboard() {
             {searchResults.length > 0 && (
               <div className="search-results">
                 {searchResults.map((student) => (
-                  <div
-                    key={student.id}
-                    className="search-item"
-                    onClick={() => {
 
-                      setSelectedSearchStudent(student)
+                  student.status?.toLowerCase() === "disabled" ? (
 
-                      setSearchQuery("")
-                      setSearchResults([])
+                    <div
+                      key={student.id}
+                      className="search-item"
+                      style={{
+                        background: "#fee2e2",
+                        border: "1px solid #ef4444",
+                        color: "#991b1b",
+                        cursor: "default"
+                      }}
+                    >
+                      <strong>
+                        ⚠ {student.name} is Deactivated
+                      </strong>
+                    </div>
 
-                      setActiveTab("batches")
+                  ) : (
 
-                    }}
-                  >
-                    <strong>{student.name}</strong>
-                    <span className="search-meta">
-                      {student.batch} • {student.branch}
-                    </span>
-                  </div>
+                    <div
+                      key={student.id}
+                      className="search-item"
+                      onClick={() => {
+
+                        console.log(student)
+
+                        const batches = student.batch_list || []
+
+                        if (batches.length > 1) {
+
+                          setSelectedSearchStudent(student)
+                          setSelectedStudentBatches(batches)
+                          setShowBatchSelector(true)
+
+                        } else {
+
+                          setSelectedSearchStudent(student)
+
+                          setSearchQuery("")
+                          setSearchResults([])
+
+                          setActiveTab("batches")
+                        }
+
+                      }}
+                    >
+                      <strong>{student.name}</strong>
+
+                      <span className="search-meta">
+
+                        {student.batch_list?.length > 1
+                          ? `${student.batch_list.length} Batches Enrolled`
+                          : `${student.batch} • ${student.branch}`
+                        }
+
+                      </span>
+
+                    </div>
+
+                  )
+
                 ))}
               </div>
             )}
@@ -1218,7 +1264,7 @@ function AdminDashboard() {
       {
         showUploadModal && (
           <div className="modal-overlay">
-            <div className="modal">
+            <div className="batch-selector-modal">
               <h3>Upload Excel File</h3>
 
               <input
@@ -1684,6 +1730,62 @@ function AdminDashboard() {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {showBatchSelector && (
+        <div className="modal-overlay">
+          <div className="modal">
+
+            <h3 className="batch-selector-title">
+              Select Batch
+            </h3>
+
+            <p className="batch-selector-subtitle">
+              {selectedSearchStudent?.name} is enrolled in multiple batches.
+              <br />
+              Choose the batch you want to enter.
+            </p>
+
+            {selectedStudentBatches.map((batch, index) => (
+              <button
+                key={index}
+                className="batch-option-btn"
+                style={{
+                  width: "100%",
+                  marginBottom: "10px"
+                }}
+                onClick={() => {
+
+                  const studentWithBatch = {
+                    ...selectedSearchStudent,
+                    selectedBatch: batch
+                  }
+
+                  setSelectedSearchStudent(studentWithBatch)
+
+                  setShowBatchSelector(false)
+                  setSearchQuery("")
+                  setSearchResults([])
+
+                  setTimeout(() => {
+                    setActiveTab("batches")
+                  }, 50)
+
+                }}
+              >
+                {batch}
+              </button>
+            ))}
+
+            <button
+              className="batch-cancel-btn"
+              onClick={() => setShowBatchSelector(false)}
+            >
+              Cancel
+            </button>
+
           </div>
         </div>
       )}

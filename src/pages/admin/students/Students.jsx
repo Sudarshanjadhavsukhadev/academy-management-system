@@ -21,6 +21,7 @@ function Students({ goDashboard }) {
   const [activityBatches, setActivityBatches] = useState({})
   const [batchFees, setBatchFees] = useState({})
   const [selectedBranches, setSelectedBranches] = useState([])
+  const [showConfirmPopup, setShowConfirmPopup] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     activity: [],
@@ -375,7 +376,7 @@ function Students({ goDashboard }) {
     // Go to dashboard after success
     setTimeout(() => {
       goDashboard()
-    }, 800)
+    }, 2000)
   }
 
 
@@ -575,13 +576,14 @@ function Students({ goDashboard }) {
 
             {activityBatches[act] && (
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 placeholder={`Enter monthly fee for ${act}`}
                 value={batchFees[activityBatches[act]] || ""}
                 onChange={(e) =>
                   setBatchFees((prev) => ({
                     ...prev,
-                    [activityBatches[act]]: Number(e.target.value)
+                    [activityBatches[act]]: e.target.value
                   }))
                 }
                 style={{
@@ -648,10 +650,90 @@ function Students({ goDashboard }) {
           <option>Walk-in</option>
         </select>
 
-        <button className="register-btn" onClick={handleAddStudent}>
+        <button
+          className="register-btn"
+          onClick={() => setShowConfirmPopup(true)}
+        >
           Register Student
         </button>
       </div>
+      {showConfirmPopup && (
+        <div className="branch-popup-overlay">
+          <div className="branch-popup">
+
+            <h2>Confirm Student Registration</h2>
+
+            <div className="student-summary">
+
+              <div className="summary-row">
+                <span>Name</span>
+                <strong>{formData.name}</strong>
+              </div>
+
+              <div className="summary-row">
+                <span>Activities</span>
+                <strong>{formData.activity.join(", ")}</strong>
+              </div>
+
+              <div className="summary-row">
+                <span>Branches</span>
+                <strong>{selectedBranches.join(", ")}</strong>
+              </div>
+
+              <div className="summary-row">
+                <span>Batches</span>
+                <strong>{Object.values(activityBatches).join(", ")}</strong>
+              </div>
+
+              <div className="summary-row">
+                <span>Joining Date</span>
+                <strong>{formData.join_date}</strong>
+              </div>
+
+              <div className="summary-row">
+                <span>WhatsApp</span>
+                <strong>{formData["Whatsapp Number"]}</strong>
+              </div>
+
+              <div className="summary-row">
+                <span>Date Of Birth</span>
+                <strong>{formData.dob}</strong>
+              </div>
+
+              <div className="summary-row">
+                <span>Reference</span>
+                <strong>{formData.reference || "N/A"}</strong>
+              </div>
+
+            </div>
+
+            <div className="confirm-actions">
+
+              <button
+                className="confirm-btn"
+                onClick={async () => {
+
+                  setShowConfirmPopup(false)
+
+                  await handleAddStudent()
+
+                }}
+              >
+                Confirm Registration
+              </button>
+
+              <button
+                className="edit-btn"
+                onClick={() => setShowConfirmPopup(false)}
+              >
+                Edit Details
+              </button>
+
+            </div>
+
+          </div>
+        </div>
+      )}
       {showCropModal && (
 
         <div className="crop-modal">
