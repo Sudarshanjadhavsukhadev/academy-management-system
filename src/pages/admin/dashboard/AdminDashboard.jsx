@@ -1628,15 +1628,40 @@ function AdminDashboard() {
       }
 
       {showStudentsModal && (
-        <div className="modal-overlay">
+        <div
+          className="modal-overlay"
+          onClick={() => setShowStudentsModal(false)}
+        >
           <div
             className="modal"
+            onClick={(e) => e.stopPropagation()}
             style={{
               width: "700px",
               maxHeight: "80vh",
-              overflowY: "auto"
+              overflowY: "auto",
+              position: "relative"
             }}
           >
+
+            <button
+              onClick={() => setShowStudentsModal(false)}
+              style={{
+               position: "sticky",
+                top: "15px",
+                right: "20px",
+                background: "transparent",
+                border: "none",
+                fontSize: "32px",
+                cursor: "pointer",
+                fontWeight: "bold",
+                color: "#ef4444",
+                zIndex: 9999
+              }}
+            >
+              ✖
+            </button>
+
+
             <h3>All Active Students</h3>
 
             {studentsList.length === 0 ? (
@@ -1677,9 +1702,13 @@ function AdminDashboard() {
       )}
 
       {showRevenueModal && (
-        <div className="modal-overlay">
+        <div
+          className="modal-overlay"
+          onClick={() => setShowRevenueModal(false)}
+        >
           <div
             className="modal"
+            onClick={(e) => e.stopPropagation()}
             style={{
               width: "800px",
               maxHeight: "80vh",
