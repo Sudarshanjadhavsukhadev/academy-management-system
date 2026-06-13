@@ -350,6 +350,8 @@ function Batches({ searchStudent }) {
     }
 
   }
+
+
   const deleteBatch = async (id) => {
     const confirmDelete = window.confirm("Delete this batch?")
     if (!confirmDelete) return
@@ -2253,12 +2255,23 @@ function Batches({ searchStudent }) {
                   </div>
                   <div className="form-group">
                     <label>Reference</label>
-                    <input
+                    <select
                       value={editingStudent.reference || ""}
                       onChange={(e) =>
-                        setEditingStudent({ ...editingStudent, reference: e.target.value })
+                        setEditingStudent({
+                          ...editingStudent,
+                          reference: e.target.value
+                        })
                       }
-                    />
+                    >
+                      <option value="">Select Reference</option>
+                      <option value="Instagram">Instagram</option>
+                      <option value="Facebook">Facebook</option>
+                      <option value="Google">Google</option>
+                      <option value="Friend Referral">Friend Referral</option>
+                      <option value="Walk In">Walk In</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
 
 
@@ -2295,6 +2308,10 @@ function Batches({ searchStudent }) {
 
                     if (!error) {
                       fetchBatchStudents(selectedBatch.name)
+
+                      // Refresh Reports Dashboard
+                      window.dispatchEvent(new Event("paymentUpdated"))
+
                       setEditingStudent(null)
                     }
 

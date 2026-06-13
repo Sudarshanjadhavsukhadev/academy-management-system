@@ -255,11 +255,32 @@ function Reports() {
     }
 
     students.forEach((s) => {
-      const source = s.reference || "Other"
+      const source = (s.reference || "")
+        .trim()
+        .toLowerCase()
 
-      if (marketingMap.hasOwnProperty(source)) {
-        marketingMap[source]++
-      } else {
+      if (source === "instagram") {
+        marketingMap["Instagram"]++
+      }
+      else if (source === "facebook") {
+        marketingMap["Facebook"]++
+      }
+      else if (source === "google") {
+        marketingMap["Google"]++
+      }
+      else if (
+        source === "friend referral" ||
+        source === "friend"
+      ) {
+        marketingMap["Friend Referral"]++
+      }
+      else if (
+        source === "walk in" ||
+        source === "walkin"
+      ) {
+        marketingMap["Walk In"]++
+      }
+      else {
         marketingMap["Other"]++
       }
     })
