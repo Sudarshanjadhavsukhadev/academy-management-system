@@ -1170,11 +1170,7 @@ function Batches({ searchStudent }) {
 
                         <td>{formatDate(student.join_date)}</td>
 
-                        <td>
-                          {student.batch_fees?.[selectedBatch.name] ||
-                            student.fees ||
-                            "-"}
-                        </td>
+                        <td>{student.fees || "-"}</td>
 
 
 
@@ -2327,7 +2323,11 @@ function Batches({ searchStudent }) {
                         batch: editingStudent.batch,
                         batch_list: [editingStudent.batch],
                         join_date: editingStudent.join_date,
-                        fees: editingStudent.fees,
+                        fees: Number(editingStudent.fees),
+                        batch_fees: {
+                          ...(editingStudent.batch_fees || {}),
+                          [editingStudent.batch]: Number(editingStudent.fees)
+                        },
                         dob: editingStudent.dob,
                         reference: editingStudent.reference,
                         profile_photo: editingStudent.profile_photo,
