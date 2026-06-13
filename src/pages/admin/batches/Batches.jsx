@@ -336,9 +336,9 @@ function Batches({ searchStudent }) {
 
       setIsEditing(false)
 
-      fetchBatches(batchBranch)
+      await fetchBatches(batchBranch)
 
-      setSelectedBatch({
+      const updatedBatch = {
         ...selectedBatch,
         name: batchName,
         course: batchCourse,
@@ -346,7 +346,15 @@ function Batches({ searchStudent }) {
         trainer: batchTrainer,
         timing: batchTime,
         days: batchDays.join(", ")
-      })
+      }
+
+      setSelectedBatch(updatedBatch)
+
+      sessionStorage.setItem(
+        "selectedBatch",
+        JSON.stringify(updatedBatch)
+      )
+
     }
 
   }
@@ -376,26 +384,45 @@ function Batches({ searchStudent }) {
   }, [])
   useEffect(() => {
 
-    if (branches.length === 0) return
+    const loadSavedData = async () => {
 
-    const savedBranch = sessionStorage.getItem("selectedBranch")
-    const savedBatch = sessionStorage.getItem("selectedBatch")
+      if (branches.length === 0) return
 
-    if (savedBranch) {
+      const savedBranch = sessionStorage.getItem("selectedBranch")
+      const savedBatch = sessionStorage.getItem("selectedBatch")
 
-      setSelectedBranch(savedBranch)
+      if (savedBranch) {
+        setSelectedBranch(savedBranch)
+        await fetchBatches(savedBranch)
+      }
 
-      fetchBatches(savedBranch)
+      if (savedBatch) {
 
+        const parsedBatch = JSON.parse(savedBatch)
+
+        const { data: latestBatch, error } = await supabase
+          .from("batches")
+          .select("*")
+          .eq("id", parsedBatch.id)
+          .single()
+
+        console.log("LATEST BATCH =", latestBatch)
+
+        if (!error && latestBatch) {
+
+          setSelectedBatch(latestBatch)
+
+          sessionStorage.setItem(
+            "selectedBatch",
+            JSON.stringify(latestBatch)
+          )
+
+          setActiveTab("students")
+        }
+      }
     }
 
-    if (savedBatch) {
-
-      setSelectedBatch(JSON.parse(savedBatch))
-
-      setActiveTab("students")
-
-    }
+    loadSavedData()
 
   }, [branches])
   useEffect(() => {
@@ -1027,9 +1054,16 @@ function Batches({ searchStudent }) {
               </button>
             </div>
 
+            {console.log("SELECTED BATCH =", selectedBatch)}
+
             <div className="batch-meta">
-              <span><strong>Trainer:</strong> {selectedBatch.trainer}</span>
-              <span><strong>Students:</strong> {studentStrength}</span>
+              <span>
+                <strong>Trainer:</strong> {selectedBatch?.trainer}
+              </span>
+
+              <span>
+                <strong>Students:</strong> {studentStrength}
+              </span>
             </div>
 
           </div>
@@ -1208,10 +1242,9 @@ function Batches({ searchStudent }) {
                           }
 
                         </td>
-                        <td>
+                        <td className="action-buttons">
 
                           {student.advance_note && (
-
                             <button
                               style={{
                                 background: "#ef4444",
@@ -1222,7 +1255,6 @@ function Batches({ searchStudent }) {
                                 cursor: "pointer"
                               }}
                               onClick={async () => {
-
                                 await supabase
                                   .from("students")
                                   .update({
@@ -1235,17 +1267,11 @@ function Batches({ searchStudent }) {
                                   .eq("id", student.id)
 
                                 fetchBatchStudents(selectedBatch.name)
-
                               }}
                             >
                               Remove Note
                             </button>
-
                           )}
-
-                        </td>
-
-                        <td className="action-buttons">
 
                           <button
                             className="view-btn"
@@ -1274,6 +1300,8 @@ function Batches({ searchStudent }) {
                           </button>
 
                         </td>
+
+
                         <td>
                           {(() => {
                             const status = student.status?.toLowerCase().trim()
@@ -1520,6 +1548,7 @@ function Batches({ searchStudent }) {
                         onClick={() => {
 
                           setSelectedBatch(batch)
+                          console.log("NEW BATCH =", batch)
 
                           sessionStorage.setItem(
                             "selectedBatch",

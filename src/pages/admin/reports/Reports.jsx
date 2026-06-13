@@ -51,6 +51,11 @@ function Reports() {
     const { data: students } = await supabase
       .from("students")
       .select("*")
+      .ilike("status", "active")
+    console.log(
+      "Active Students:",
+      students?.length
+    )
 
     const { data: paidFeesRaw } = await supabase
       .from("student_fees")

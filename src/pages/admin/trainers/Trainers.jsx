@@ -571,6 +571,16 @@ function Trainers() {
                       alert("Insert batches failed")
                       return
                     }
+                    for (const batchName of selectedBatches) {
+
+                      await supabase
+                        .from("batches")
+                        .update({
+                          trainer: editingTrainer.name
+                        })
+                        .eq("name", batchName)
+
+                    }
                   }
 
                   alert("Trainer Updated ✅")

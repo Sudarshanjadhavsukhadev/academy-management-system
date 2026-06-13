@@ -279,6 +279,60 @@ function AdminDashboard() {
     })
   }
 
+  const fetchUpcomingClasses = async () => {
+
+    const { data, error } = await supabase
+      .from("batches")
+      .select("*")
+
+    if (error) {
+      console.log(error)
+      return
+    }
+
+    const now = new Date()
+
+    const currentMinutes =
+      now.getHours() * 60 + now.getMinutes()
+
+    const upcoming = (data || [])
+      .map(batch => {
+
+        if (!batch.timing) return null
+
+        const time = batch.timing.trim()
+
+        const [timePart, ampm] = time.split(" ")
+
+        let [hour, minute] =
+          timePart.split(":").map(Number)
+
+        if (ampm === "PM" && hour !== 12) {
+          hour += 12
+        }
+
+        if (ampm === "AM" && hour === 12) {
+          hour = 0
+        }
+
+        return {
+          ...batch,
+          totalMinutes: hour * 60 + minute
+        }
+
+      })
+      .filter(Boolean)
+      .filter(batch =>
+        batch.totalMinutes >= currentMinutes
+      )
+      .sort(
+        (a, b) =>
+          a.totalMinutes - b.totalMinutes
+      )
+      .slice(0, 3)
+
+    setUpcomingClasses(upcoming)
+  }
 
 
   useEffect(() => {
@@ -286,27 +340,34 @@ function AdminDashboard() {
     const loadData = async () => {
       await fetchStats()
       await fetchLast12MonthsRevenue()
-      setRevenueType("last12")
       await fetchManualRevenueHistory()
+      await fetchUpcomingClasses()
+      setRevenueType("last12")
     }
 
     loadData()
 
+    // refresh upcoming classes every minute
+    const upcomingInterval = setInterval(() => {
+      fetchUpcomingClasses()
+    }, 60000)
+
     const handler = async () => {
       await fetchStats()
       await fetchLast12MonthsRevenue()
-      setRevenueType("last12")
       await fetchManualRevenueHistory()
+      await fetchUpcomingClasses()
+      setRevenueType("last12")
     }
 
     window.addEventListener("paymentUpdated", handler)
 
     return () => {
+      clearInterval(upcomingInterval)
       window.removeEventListener("paymentUpdated", handler)
     }
 
   }, [])
-
   useEffect(() => {
 
     const checkBirthdays = async () => {
@@ -324,7 +385,7 @@ function AdminDashboard() {
 
       const { data } = await supabase
         .from("students")
-        .select("fees, fee_month")
+        .select("name, dob")
 
       const { data: manualRevenue } = await supabase
         .from("manual_revenue")
@@ -368,6 +429,7 @@ function AdminDashboard() {
 
         if (filteredMessages.length > 0) {
           setShowNotifications(true)
+          setToast(filteredMessages[0])
         }
 
       }
@@ -699,6 +761,22 @@ function AdminDashboard() {
 
     setDbSize(data)
 
+    const usagePercent = (data / DB_LIMIT) * 100
+
+    if (usagePercent >= 90) {
+
+      const msg = "🚨 Database storage above 90%"
+
+      setNotifications(prev => {
+
+        if (prev.includes(msg)) return prev
+
+        return [...prev, msg]
+
+      })
+
+      setToast(msg)
+    }
   }
   const fetchTableUsage = async () => {
 
@@ -1148,6 +1226,28 @@ function AdminDashboard() {
 
               <p>
                 {(dbSize / 1024 / 1024).toFixed(2)} MB / 500 MB used
+              </p>
+              <p
+                style={{
+                  fontWeight: "bold",
+                  color:
+                    (dbSize / DB_LIMIT) * 100 >= 90
+                      ? "red"
+                      : (dbSize / DB_LIMIT) * 100 >= 70
+                        ? "orange"
+                        : "green"
+                }}
+              >
+                Usage: {((dbSize / DB_LIMIT) * 100).toFixed(2)}%
+              </p>
+
+              <p>
+                Remaining:
+                {(
+                  (DB_LIMIT - dbSize) /
+                  1024 /
+                  1024
+                ).toFixed(2)} MB
               </p>
               <div className="table-usage">
                 <h4>Table Usage</h4>
@@ -1605,13 +1705,7 @@ function AdminDashboard() {
         )
       }
 
-      {
-        toast && (
-          <div className="toast-notification">
-            {toast}
-          </div>
-        )
-      }
+
       {
         toast && (
           <div className="toast-notification">
@@ -1646,7 +1740,7 @@ function AdminDashboard() {
             <button
               onClick={() => setShowStudentsModal(false)}
               style={{
-               position: "sticky",
+                position: "sticky",
                 top: "15px",
                 right: "20px",
                 background: "transparent",
