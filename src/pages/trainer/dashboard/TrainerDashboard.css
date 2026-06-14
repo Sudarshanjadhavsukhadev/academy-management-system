@@ -1,9 +1,33 @@
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+select,
+textarea,
+button {
+  font-size: 16px !important;
+}
+
 /* ============================= */
 /* GLOBAL PAGE */
 /* ============================= */
 .trainer-dashboard {
   min-height: 100vh;
   padding: 20px;
+
+  padding-top: max(20px, env(safe-area-inset-top));
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+
   background: linear-gradient(180deg, #f8fafc, #eef2ff);
   font-family: "Inter", sans-serif;
 }
@@ -12,42 +36,61 @@
 /* HERO SECTION */
 /* ============================= */
 .hero-section {
-  margin-bottom: 25px;
-  padding: 30px;
-  border-radius: 26px;
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  margin-bottom: 16px;
+
+  padding: 18px 20px;
+
+  border-radius: 24px;
+
+  background: linear-gradient(135deg,
+      #4338ca,
+      #6366f1);
+
   color: white;
-  box-shadow: 0 25px 50px rgba(79, 70, 229, 0.35);
+
+  box-shadow:
+    0 12px 30px rgba(79, 70, 229, .25);
 }
 
 .hero-section h1 {
-  font-size: 28px;
-  font-weight: 900;
-  letter-spacing: -0.5px;
+  font-size: 24px;
+  font-weight: 800;
+
+  margin: 8px 0;
+
+  line-height: 1.2;
+}
+
+.hero-section {
+  overflow: hidden;
 }
 
 .hero-section p {
-  margin-top: 8px;
-  opacity: 0.9;
-  font-weight: 500;
+  font-size: 15px;
+  opacity: .9;
 }
 
 /* Back Button inside hero */
 .hero-section button {
-  background: rgba(255, 255, 255, 0.2);
+  background: #ef4444;
   border: none;
-  padding: 8px 16px;
+  padding: 10px 18px;
   border-radius: 12px;
   color: white;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   margin-bottom: 15px;
   transition: 0.3s ease;
+
+  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.35);
 }
 
 .hero-section button:hover {
-  background: white;
-  color: #4f46e5;
+  background: #dc2626;
+  color: white;
+  transform: translateY(-2px);
+
+  box-shadow: 0 12px 25px rgba(220, 38, 38, 0.45);
 }
 
 /* ============================= */
@@ -59,14 +102,19 @@
 
 .batch-search input {
   width: 100%;
-  padding: 18px 22px;
-  border-radius: 20px;
+  height: 58px;
+
   border: none;
-  font-size: 16px;
+  border-radius: 18px;
+
+  padding: 0 20px;
+
   background: white;
-  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.08);
-  outline: none;
-  transition: 0.3s ease;
+
+  font-size: 16px;
+
+  box-shadow:
+    0 10px 25px rgba(0, 0, 0, .08);
 }
 
 .batch-search input:focus {
@@ -83,29 +131,41 @@
 }
 
 .single-batch-card {
-  padding: 28px;
-  border-radius: 24px;
   background: white;
-  box-shadow: 0 18px 35px rgba(0, 0, 0, 0.08);
-  text-align: center;
-  cursor: pointer;
-  transition: 0.35s ease;
-}
 
-.single-batch-card h2 {
-  font-size: 24px;
-  font-weight: 900;
-  margin-bottom: 8px;
-}
+  border-radius: 24px;
 
-.single-batch-card p {
-  font-weight: 700;
-  color: #4f46e5;
+  padding: 24px;
+
+  box-shadow:
+    0 12px 35px rgba(0, 0, 0, .08);
+
+  border: 2px solid transparent;
+
+  transition: .3s;
 }
 
 .single-batch-card:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 25px 50px rgba(79, 70, 229, 0.25);
+  transform: translateY(-6px);
+
+  border-color: #6366f1;
+
+  box-shadow:
+    0 20px 45px rgba(99, 102, 241, .25);
+}
+
+.single-batch-card h2 {
+  font-size: 20px;
+  font-weight: 800;
+
+  margin-bottom: 12px;
+
+  color: #0f172a;
+}
+
+.single-batch-card p {
+  color: #6366f1;
+  font-weight: 700;
 }
 
 /* ============================= */
@@ -113,23 +173,43 @@
 /* ============================= */
 .attendance-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-  gap: 18px;
-  margin-top: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
 }
 
 /* ============================= */
 /* STUDENT CARD */
 /* ============================= */
 .seat-card {
-  padding: 20px;
+  min-height: 100px;
+
+  padding: 18px;
+
   border-radius: 20px;
-  background: linear-gradient(145deg, #f1f5f9, #e2e8f0);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
   text-align: center;
-  font-weight: 800;
-  cursor: pointer;
+
+  background: white;
+
+  border: 2px solid #e0e7ff;
+
+  box-shadow:
+    0 10px 25px rgba(99, 102, 241, 0.15);
+
   transition: 0.3s ease;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+
+  font-weight: 700;
+  color: #111827;
+}
+
+.seat-card span {
+  font-size: 16px;
+  line-height: 1.4;
+  word-break: break-word;
 }
 
 .seat-card:hover {
@@ -399,15 +479,27 @@
 
 .system-message {
   position: fixed;
-  bottom: 30px;
-  right: 30px;
-  padding: 14px 22px;
-  border-radius: 12px;
-  color: white;
-  font-weight: 600;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
-  animation: slideUp 0.4s ease;
-  z-index: 9999;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  width: calc(100% - 40px);
+  max-width: 380px;
+
+  padding: 16px 20px;
+
+  border-radius: 16px;
+
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+
+  z-index: 99999;
 }
 
 .system-message.success {
@@ -418,14 +510,70 @@
   background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 
-@keyframes slideUp {
+@keyframes toastSlide {
   from {
-    transform: translateY(60px);
     opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
   }
 
   to {
-    transform: translateY(0);
     opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
+}
+
+@media (max-width: 768px) {
+
+  .trainer-dashboard {
+    padding: 12px;
+  }
+
+  .hero-section {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .hero-section h1 {
+    font-size: 22px;
+    line-height: 1.2;
+  }
+
+  .hero-section p {
+    font-size: 14px;
+  }
+
+  .hero-section button {
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+
+  .batch-search input {
+    height: 52px;
+    font-size: 16px;
+  }
+
+  .attendance-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .seat-card {
+    min-height: 80px;
+    padding: 12px;
+  }
+
+  .seat-card span {
+    font-size: 14px;
+  }
+
+  .calendar-popup {
+    width: 95%;
+    padding: 24px;
+  }
+}
+
+.system-message.warning {
+  background: linear-gradient(135deg,
+      #ef4444,
+      #dc2626);
 }

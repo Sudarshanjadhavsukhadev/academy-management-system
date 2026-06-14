@@ -26,6 +26,7 @@ import Revenue from "./pages/admin/revenue/Revenue"
 /* TRAINER */
 import TrainerLogin from "./pages/trainer/auth/TrainerLogin"
 import TrainerRegister from "./pages/trainer/auth/TrainerRegister"
+import TrainerIntro from "./pages/trainer/auth/TrainerIntro"
 import TrainerLayout from "./layouts/TrainerLayout"
 import TrainerDashboard from "./pages/trainer/dashboard/TrainerDashboard"
 import TrainerAttendance from "./pages/trainer/attendance/TrainerAttendance"
@@ -80,7 +81,8 @@ function App() {
 
 
       {/* TRAINER AUTH */}
-      <Route path="/trainer/login" element={<TrainerLogin />} />
+      <Route path="/trainer/login" element={<TrainerIntro />} />
+      <Route path="/trainer-login" element={<TrainerLogin />} />
       <Route path="/trainer/register" element={<TrainerRegister />} />
 
       {/* TRAINER PROTECTED */}

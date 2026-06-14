@@ -35,6 +35,7 @@ const TrainerDashboard = () => {
   const [batchSearch, setBatchSearch] = useState("")
   const [showCalendar, setShowCalendar] = useState(false)
   const [attendanceDate, setAttendanceDate] = useState("")
+  const [selectedAttendanceDate, setSelectedAttendanceDate] = useState("")
   const [systemMessage, setSystemMessage] = useState(null)
   const fetchTrainerData = async () => {
 
@@ -206,6 +207,12 @@ const TrainerDashboard = () => {
       .from("attendance")
       .insert(records)
 
+    if (error) {
+      console.log(error)
+      showSystemMessage("❌ Failed to save attendance", "warning")
+      return
+    }
+
     if (!error) {
 
       const { error: notifError } = await supabase
@@ -220,10 +227,16 @@ const TrainerDashboard = () => {
         console.log("Notification insert failed", notifError)
       }
 
-      showSystemMessage("Attendance Saved Successfully", "success")
+      showSystemMessage("Attendance Saved Successfully ✅", "success")
 
       setAttendance({})
       setAttendanceDate("")
+      setSelectedAttendanceDate("")
+
+      // Go back to dashboard after 1 second
+      setTimeout(() => {
+        setView("dashboard")
+      }, 1000)
     }
 
   }
@@ -246,17 +259,11 @@ const TrainerDashboard = () => {
   )
   const showSystemMessage = (text, type = "success") => {
 
-    setSystemMessage(null)   // ⭐ reset first
+    setSystemMessage({ text, type })
 
     setTimeout(() => {
-
-      setSystemMessage({ text, type })
-
-      setTimeout(() => {
-        setSystemMessage(null)
-      }, 3000)
-
-    }, 50)
+      setSystemMessage(null)
+    }, 2000)
 
   }
 
@@ -339,7 +346,19 @@ const TrainerDashboard = () => {
             ← Back
           </button>
 
-          <h1>{selectedBatch}</h1>
+          <h1>Batch Details</h1>
+
+          <p
+            style={{
+              fontSize: "18px",
+              fontWeight: "700",
+              color: "white",
+              marginTop: "12px",
+              wordBreak: "break-word"
+            }}
+          >
+            {selectedBatch}
+          </p>
           <p>Total Students: {batchStudents.length}</p>
         </div>
 
@@ -363,49 +382,14 @@ const TrainerDashboard = () => {
         </div>
         <div className="calendar-actions">
           <button className="calendar-confirm"
-            onClick={() => setShowCalendar(true)}
+            onClick={() => {
+              saveAttendance(selectedAttendanceDate)
+            }}
           >
             Save Attendance
           </button>
         </div>
-        {showCalendar && (
-          <div className="calendar-overlay">
 
-            <div className="calendar-popup">
-
-              <h2>Select Attendance Date</h2>
-
-              <input
-                type="date"
-                value={attendanceDate}
-                onChange={(e) => setAttendanceDate(e.target.value)}
-              />
-
-              <div style={{ marginTop: 20 }}>
-
-                <button
-                  className="save-btn"
-                  onClick={() => {
-                    saveAttendance(attendanceDate)
-                    setShowCalendar(false)
-                  }}
-                >
-                  Confirm
-                </button>
-
-                <button
-                  style={{ marginLeft: 10 }}
-                  onClick={() => setShowCalendar(false)}
-                >
-                  Cancel
-                </button>
-
-              </div>
-
-            </div>
-
-          </div>
-        )}
       </div>
     )
   }
@@ -414,13 +398,7 @@ const TrainerDashboard = () => {
     <div className="trainer-dashboard">
 
       {/* 🔥 HERO SECTION */}
-      <div className="hero-section">
-        <div>
-          <h1>Welcome Back, {trainer.name} 👋</h1>
-          <p>{trainer.branch} • {trainer.course}</p>
-        </div>
 
-      </div>
 
       {/* 🔎 Search Bar */}
       <div className="batch-search">
@@ -442,7 +420,10 @@ const TrainerDashboard = () => {
               className="single-batch-card"
               onClick={() => {
                 setSelectedBatch(batch)
-                setView("batch")
+                setShowCalendar(true)
+
+                setAttendanceDate("")
+                setSelectedAttendanceDate("")
               }}
             >
               <h2>{batch}</h2>
@@ -451,6 +432,70 @@ const TrainerDashboard = () => {
           )
         })}
       </div>
+
+      {showCalendar && (
+        <div className="calendar-overlay">
+          <div className="calendar-popup">
+
+            <h2>Select Attendance Date</h2>
+
+            <input
+              type="date"
+              value={attendanceDate}
+              onChange={(e) => {
+                setAttendanceDate(e.target.value)
+                setSelectedAttendanceDate(e.target.value)
+              }}
+            />
+
+            <div style={{ marginTop: 20 }}>
+              <button
+                className="save-btn"
+                onClick={async () => {
+
+                  if (!attendanceDate) {
+                    showSystemMessage("Please select attendance date", "warning")
+                    return
+                  }
+
+                  const { data: existing } = await supabase
+                    .from("attendance")
+                    .select("id")
+                    .eq("batch", selectedBatch)
+                    .eq("date", attendanceDate)
+                    .limit(1)
+
+                  if (existing && existing.length > 0) {
+
+                    showSystemMessage(
+                      `Attendance already marked on ${attendanceDate}`,
+                      "warning"
+                    )
+
+                    setShowCalendar(false)
+
+                    return
+                  }
+
+                  setSelectedAttendanceDate(attendanceDate)
+                  setShowCalendar(false)
+                  setView("batch")
+                }}
+              >
+                Continue
+              </button>
+
+              <button
+                style={{ marginLeft: 10 }}
+                onClick={() => setShowCalendar(false)}
+              >
+                Cancel
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
       {systemMessage && (
         <div className={`system-message ${systemMessage.type}`}>
           {systemMessage.text}
