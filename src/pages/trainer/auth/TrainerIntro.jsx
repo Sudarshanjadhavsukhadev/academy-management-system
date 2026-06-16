@@ -5,8 +5,7 @@ const TrainerIntro = () => {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Already watched intro?
-    const introSeen = localStorage.getItem("trainerIntroSeen")
+    const introSeen = sessionStorage.getItem("trainerIntroSeen")
 
     if (introSeen === "true") {
       navigate("/trainer-login", { replace: true })
@@ -14,7 +13,7 @@ const TrainerIntro = () => {
     }
 
     const timer = setTimeout(() => {
-      localStorage.setItem("trainerIntroSeen", "true")
+      sessionStorage.setItem("trainerIntroSeen", "true")
       navigate("/trainer-login", { replace: true })
     }, 5000)
 
@@ -34,6 +33,10 @@ const TrainerIntro = () => {
         autoPlay
         muted
         playsInline
+        onEnded={() => {
+          sessionStorage.setItem("trainerIntroSeen", "true")
+          navigate("/trainer-login", { replace: true })
+        }}
         style={{
           width: "100%",
           height: "100%",
