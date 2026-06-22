@@ -82,6 +82,15 @@ function AdminDashboard() {
   const [revenueList, setRevenueList] = useState([])
   const DB_LIMIT = 500 * 1024 * 1024
 
+  const [showAssignBatchPopup, setShowAssignBatchPopup] =
+    useState(false)
+
+  const [assignBatch, setAssignBatch] =
+    useState("")
+
+  const [allBatches, setAllBatches] =
+    useState([])
+
   useEffect(() => {
 
     const removed = JSON.parse(
@@ -338,10 +347,14 @@ function AdminDashboard() {
   useEffect(() => {
 
     const loadData = async () => {
+
+      await fetchAllBatches()
+
       await fetchStats()
       await fetchLast12MonthsRevenue()
       await fetchManualRevenueHistory()
       await fetchUpcomingClasses()
+
       setRevenueType("last12")
     }
 
@@ -1005,6 +1018,20 @@ function AdminDashboard() {
 
   }
 
+  const fetchAllBatches = async () => {
+
+    const { data, error } = await supabase
+      .from("batches")
+      .select("*")
+
+    if (error) {
+      console.log(error)
+      return
+    }
+
+    setAllBatches(data || [])
+  }
+
   return (
     <div className="admin-dashboard">
       <img
@@ -1094,9 +1121,19 @@ function AdminDashboard() {
                       className="search-item"
                       onClick={() => {
 
-                        console.log(student)
-
                         const batches = student.batch_list || []
+
+                        // No batch assigned
+                        if (
+                          batches.length === 0 &&
+                          !student.batch
+                        ) {
+
+                          setSelectedSearchStudent(student)
+                          setShowAssignBatchPopup(true)
+
+                          return
+                        }
 
                         if (batches.length > 1) {
 
@@ -1902,6 +1939,8 @@ function AdminDashboard() {
               </button>
             ))}
 
+
+
             <button
               className="batch-cancel-btn"
               onClick={() => setShowBatchSelector(false)}
@@ -1909,6 +1948,90 @@ function AdminDashboard() {
               Cancel
             </button>
 
+          </div>
+        </div>
+      )}
+
+      {showAssignBatchPopup && (
+        <div className="modal-overlay">
+          <div className="modal">
+
+            <h3>Assign Batch</h3>
+
+            <p>
+              {selectedSearchStudent?.name}
+              has no batch assigned.
+            </p>
+
+            <select
+              value={assignBatch}
+              onChange={(e) =>
+                setAssignBatch(e.target.value)
+              }
+              style={{
+                width: "100%",
+                padding: "10px",
+                marginBottom: "15px"
+              }}
+            >
+              <option value="">
+                Select Batch
+              </option>
+
+              {allBatches.map((batch) => (
+                <option
+                  key={batch.id}
+                  value={batch.name}
+                >
+                  {batch.name}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={async () => {
+
+                if (!assignBatch) {
+                  alert("Please select a batch")
+                  return
+                }
+
+                const { error } = await supabase
+                  .from("students")
+                  .update({
+                    batch: assignBatch,
+                    batch_list: [assignBatch]
+                  })
+                  .eq(
+                    "id",
+                    selectedSearchStudent.id
+                  )
+
+                if (error) {
+                  alert(error.message)
+                  return
+                }
+
+                alert("Batch Assigned Successfully")
+
+                const updatedStudent = {
+                  ...selectedSearchStudent,
+                  batch: assignBatch,
+                  batch_list: [assignBatch]
+                }
+
+                setSelectedSearchStudent(updatedStudent)
+
+                setShowAssignBatchPopup(false)
+
+                setSearchQuery("")
+                setSearchResults([])
+
+                setActiveTab("batches")
+
+              }}
+            >
+              Save
+            </button>
           </div>
         </div>
       )}
