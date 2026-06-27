@@ -840,9 +840,9 @@ function Batches({ searchStudent }) {
     }
 
     // 🔥 get all unique dates
-    const allDates = [...new Set(
-      data.map(r => new Date(r.date).getDate())
-    )].sort((a, b) => a - b)
+    const allDates = [
+      ...new Set(data.map(r => r.date))
+    ].sort()
 
     // 🔥 group by student
     const studentsMap = {}
@@ -855,17 +855,35 @@ function Batches({ searchStudent }) {
         }
       }
 
-      const day = new Date(record.date).getDate()
+      const day = record.date
 
       studentsMap[record.student_id].records[day] =
         record.status === "Present" ? "P" : "A"
     })
 
     // 🔥 create excel rows
-    const rows = []
+    const rows = [
+      ["MJK ACADEMY"],
+      ["ATTENDANCE REPORT"],
+      [],
+      ["Batch", selectedBatch.name],
+      ["Trainer", selectedBatch.trainer],
+      ["Branch", selectedBatch.branch],
+      ["From Date", attendanceFromDate],
+      ["To Date", attendanceToDate],
+      []
+    ]
 
     // header
-    const header = ["Student Name", ...allDates]
+    const formattedDates = allDates.map(date => {
+      const d = new Date(date)
+
+      return `${String(d.getDate()).padStart(2, "0")}-${String(
+        d.getMonth() + 1
+      ).padStart(2, "0")}-${d.getFullYear()}`
+    })
+
+    const header = ["Student Name", ...formattedDates]
     rows.push(header)
 
     // data rows
@@ -882,11 +900,28 @@ function Batches({ searchStudent }) {
 
     // 🔥 convert to sheet
     const ws = XLSX.utils.aoa_to_sheet(rows)
+    Object.keys(ws).forEach(cell => {
+      if (!cell.startsWith("!")) {
+        ws[cell].s = {
+          alignment: {
+            horizontal: "center",
+            vertical: "center"
+          }
+        }
+      }
+    })
+    ws["!cols"] = [
+      { wch: 35 }, // Student Name
+      ...allDates.map(() => ({ wch: 12 }))
+    ]
     const wb = XLSX.utils.book_new()
 
     XLSX.utils.book_append_sheet(wb, ws, "Attendance")
 
-    XLSX.writeFile(wb, `${selectedBatch.name}_attendance.xlsx`)
+    XLSX.writeFile(
+      wb,
+      `${selectedBatch.name}_Attendance_Report_${attendanceFromDate}_to_${attendanceToDate}.xlsx`
+    )
     setShowAttendancePopup(false)
   }
 
