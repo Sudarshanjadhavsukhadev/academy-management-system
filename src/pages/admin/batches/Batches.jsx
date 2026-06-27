@@ -73,6 +73,9 @@ function Batches({ searchStudent }) {
   const [attendanceStats, setAttendanceStats] = useState([])
   const [studentAttendanceChart, setStudentAttendanceChart] = useState(null)
   const [studentAttendanceDates, setStudentAttendanceDates] = useState([])
+  const [showAttendancePopup, setShowAttendancePopup] = useState(false)
+  const [attendanceFromDate, setAttendanceFromDate] = useState("")
+  const [attendanceToDate, setAttendanceToDate] = useState("")
   const [lastAttendance, setLastAttendance] = useState({})
   const [messagePopup, setMessagePopup] = useState("")
   const [confirmDisableStudent, setConfirmDisableStudent] = useState(null)
@@ -179,7 +182,7 @@ function Batches({ searchStudent }) {
 
     const { data, error } = await supabase
       .from("attendance")
-      .select("student_id, date")
+      .select("student_id, date, status")
       .eq("batch", batchName)
       .order("date", { ascending: false })
 
@@ -193,13 +196,15 @@ function Batches({ searchStudent }) {
     data.forEach(record => {
 
       if (!map[record.student_id]) {
-        map[record.student_id] = record.date   // 🔥 first = latest
+        map[record.student_id] = {
+          date: record.date,
+          status: record.status
+        }
       }
 
     })
 
     setLastAttendance(map)
-
   }
   const fetchCourses = async () => {
     const { data, error } = await supabase
@@ -826,6 +831,8 @@ function Batches({ searchStudent }) {
       .from("attendance")
       .select("*")
       .eq("batch", selectedBatch.name)
+      .gte("date", attendanceFromDate)
+      .lte("date", attendanceToDate)
 
     if (error) {
       console.error(error)
@@ -880,6 +887,7 @@ function Batches({ searchStudent }) {
     XLSX.utils.book_append_sheet(wb, ws, "Attendance")
 
     XLSX.writeFile(wb, `${selectedBatch.name}_attendance.xlsx`)
+    setShowAttendancePopup(false)
   }
 
   return (
@@ -982,7 +990,7 @@ function Batches({ searchStudent }) {
               </button>
 
               <button
-                onClick={downloadAttendanceSheet}
+                onClick={() => setShowAttendancePopup(true)}
               >
                 Attendance Sheet
               </button>
@@ -1336,6 +1344,7 @@ function Batches({ searchStudent }) {
                       <tr>
                         <th>Name</th>
                         <th>Last Attendance</th>
+                        <th>Last Status</th>
                         <th>Present</th>
                         <th>Absent</th>
                       </tr>
@@ -1364,8 +1373,26 @@ function Batches({ searchStudent }) {
 
                             <td>
                               {lastAttendance[student.id]
-                                ? new Date(lastAttendance[student.id]).toLocaleDateString()
+                                ? new Date(lastAttendance[student.id].date).toLocaleDateString()
                                 : "Not Marked"}
+                            </td>
+
+                            <td>
+                              {!lastAttendance[student.id] ? (
+                                "-"
+                              ) : (
+                                <span
+                                  style={{
+                                    color:
+                                      lastAttendance[student.id].status === "Present"
+                                        ? "#16a34a"
+                                        : "#dc2626",
+                                    fontWeight: "bold"
+                                  }}
+                                >
+                                  {lastAttendance[student.id].status}
+                                </span>
+                              )}
                             </td>
 
                             <td>
@@ -1386,6 +1413,8 @@ function Batches({ searchStudent }) {
                                 Absent
                               </button>
                             </td>
+
+
 
 
 
@@ -2664,6 +2693,57 @@ function Batches({ searchStudent }) {
               >
                 Cancel
               </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {showAttendancePopup && (
+        <div className="branch-popup-overlay">
+          <div className="attendance-popup">
+
+            <h2>Attendance Report</h2>
+
+            <div className="attendance-input-group">
+
+              <label> From Date</label>
+
+              <input
+                type="date"
+                value={attendanceFromDate}
+                onChange={(e) => setAttendanceFromDate(e.target.value)}
+              />
+
+            </div>
+            <div className="attendance-input-group">
+
+              <label> To Date</label>
+
+              <input
+                type="date"
+                value={attendanceToDate}
+                onChange={(e) => setAttendanceToDate(e.target.value)}
+              />
+
+            </div>
+
+
+            <div className="attendance-popup-buttons">
+
+              <button
+                className="download-attendance-btn"
+                onClick={downloadAttendanceSheet}
+              >
+                ⬇ Download Excel
+              </button>
+              <button
+                className="cancel-attendance-btn"
+                onClick={() => setShowAttendancePopup(false)}
+              >
+                Cancel
+              </button>
+
             </div>
 
           </div>

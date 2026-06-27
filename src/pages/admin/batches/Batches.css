@@ -1461,3 +1461,80 @@ select:focus {
 .paid-row td {
   background: #dcfce7 !important;
 }
+
+/* Attendance Report Popup */
+
+.attendance-popup{
+    width:480px;
+    background:#fff;
+    padding:35px;
+    border-radius:20px;
+    box-shadow:0 20px 60px rgba(0,0,0,.2);
+}
+
+.attendance-popup h2{
+    text-align:center;
+    font-size:30px;
+    margin-bottom:30px;
+    color:#1e293b;
+}
+
+.attendance-input-group{
+    margin-bottom:20px;
+}
+
+.attendance-input-group label{
+    display:block;
+    margin-bottom:8px;
+    font-weight:600;
+    color:#475569;
+}
+
+.attendance-input-group input{
+    width:100%;
+    padding:14px;
+    border:2px solid #e2e8f0;
+    border-radius:10px;
+    font-size:15px;
+    transition:.3s;
+}
+
+.attendance-input-group input:focus{
+    outline:none;
+    border-color:#6366f1;
+    box-shadow:0 0 0 4px rgba(99,102,241,.15);
+}
+
+.attendance-popup-buttons{
+    margin-top:30px;
+    display:flex;
+    justify-content:center;
+    gap:15px;
+}
+
+.download-attendance-btn{
+    background:#6366f1;
+    color:white;
+    border:none;
+    padding:12px 25px;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:600;
+}
+
+.download-attendance-btn:hover{
+    background:#4f46e5;
+}
+
+.cancel-attendance-btn{
+    background:#e2e8f0;
+    color:#111827;
+    border:none;
+    padding:12px 25px;
+    border-radius:10px;
+    cursor:pointer;
+}
+
+.cancel-attendance-btn:hover{
+    background:#cbd5e1;
+}

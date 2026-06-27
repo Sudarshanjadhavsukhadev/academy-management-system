@@ -22,6 +22,7 @@ function Trainers() {
   const [expandedTrainer, setExpandedTrainer] = useState(null)
   const [selectedBatches, setSelectedBatches] = useState([])
   const [batchPopupTrainer, setBatchPopupTrainer] = useState(null)
+  const [batchSearch, setBatchSearch] = useState("")
 
   const fetchTrainers = async () => {
     const { data, error } = await supabase
@@ -496,23 +497,37 @@ function Trainers() {
 
             <h3 style={{ marginTop: "20px" }}>Assign Batches</h3>
 
+            <input
+              type="text"
+              placeholder="🔍 Search Batch..."
+              value={batchSearch}
+              onChange={(e) => setBatchSearch(e.target.value)}
+              className="batch-search-input"
+            />
+
             <div className="days-container">
 
-              {allBatches.map(batch => (
+              {allBatches
+                .filter(batch =>
+                  batch.name
+                    .toLowerCase()
+                    .includes(batchSearch.toLowerCase())
+                )
+                .map(batch => (
 
-                <label key={batch.name} className="day-option">
+                  <label key={batch.name} className="day-option">
 
-                  <input
-                    type="checkbox"
-                    checked={selectedBatches.includes(batch.name)}
-                    onChange={() => toggleBatch(batch.name)}
-                  />
+                    <input
+                      type="checkbox"
+                      checked={selectedBatches.includes(batch.name)}
+                      onChange={() => toggleBatch(batch.name)}
+                    />
 
-                  {batch.name}
+                    {batch.name}
 
-                </label>
+                  </label>
 
-              ))}
+                ))}
 
             </div>
 
@@ -587,6 +602,7 @@ function Trainers() {
 
                   fetchTrainers()
                   setEditingTrainer(null)
+                  setBatchSearch("")
 
                 }}
               >
@@ -594,7 +610,10 @@ function Trainers() {
               </button>
               <button
                 style={{ marginLeft: "10px" }}
-                onClick={() => setEditingTrainer(null)}
+                onClick={() => {
+                  setEditingTrainer(null)
+                  setBatchSearch("")
+                }}
               >
                 Cancel
               </button>

@@ -37,6 +37,8 @@ const TrainerDashboard = () => {
   const [attendanceDate, setAttendanceDate] = useState("")
   const [selectedAttendanceDate, setSelectedAttendanceDate] = useState("")
   const [systemMessage, setSystemMessage] = useState(null)
+  const [isEditingAttendance, setIsEditingAttendance] = useState(false)
+  const [showEditAttendancePopup, setShowEditAttendancePopup] = useState(false)
   const fetchTrainerData = async () => {
 
     const { data: authData } = await supabase.auth.getUser()
@@ -83,8 +85,7 @@ const TrainerDashboard = () => {
     const { data: studentData } = await supabase
       .from("students")
       .select("*")
-      .in("batch", batchList)
-
+      .ilike("status", "active")
     setStudents(studentData || [])
   }
   useEffect(() => {
@@ -331,10 +332,15 @@ const TrainerDashboard = () => {
     )
   }
   if (view === "batch" && selectedBatch) {
-    const batchStudents = students.filter(
-      s => s.batch === selectedBatch
-    )
+    console.log("Selected Batch:", selectedBatch)
 
+    students.forEach(s => {
+      console.log(s.name, s.batch_list)
+    })
+
+    const batchStudents = students.filter(
+      s => s.batch_list?.includes(selectedBatch)
+    )
     return (
       <div className="trainer-dashboard">
 
@@ -412,7 +418,9 @@ const TrainerDashboard = () => {
 
       <div className="single-batch-container">
         {filteredBatches.map((batch) => {
-          const count = students.filter(s => s.batch === batch).length
+          const count = students.filter(
+            s => s.batch_list?.includes(batch)
+          ).length
 
           return (
             <div
@@ -467,16 +475,33 @@ const TrainerDashboard = () => {
 
                   if (existing && existing.length > 0) {
 
-                    showSystemMessage(
-                      `Attendance already marked on ${attendanceDate}`,
-                      "warning"
-                    )
+                    setShowEditAttendancePopup(true)
+                    return
+
+                    // Load existing attendance
+                    const { data: oldAttendance } = await supabase
+                      .from("attendance")
+                      .select("*")
+                      .eq("batch", selectedBatch)
+                      .eq("date", attendanceDate)
+
+                    const attendanceMap = {}
+
+                    oldAttendance.forEach(record => {
+                      attendanceMap[record.student_id] =
+                        record.status === "Present"
+                    })
+
+                    setAttendance(attendanceMap)
+
+                    setIsEditingAttendance(true)
 
                     setShowCalendar(false)
 
+                    setView("batch")
+
                     return
                   }
-
                   setSelectedAttendanceDate(attendanceDate)
                   setShowCalendar(false)
                   setView("batch")
@@ -491,6 +516,81 @@ const TrainerDashboard = () => {
               >
                 Cancel
               </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+      {showEditAttendancePopup && (
+        <div className="calendar-overlay">
+          <div className="calendar-popup">
+
+            <h2>Attendance Already Exists</h2>
+
+            <p
+              style={{
+                marginTop: 20,
+                textAlign: "center",
+                fontSize: 17
+              }}
+            >
+              Attendance for
+              <br />
+              <b>{attendanceDate}</b>
+              <br /><br />
+              Do you want to edit it?
+            </p>
+
+            <div
+              style={{
+                marginTop: 30,
+                display: "flex",
+                justifyContent: "center",
+                gap: 15
+              }}
+            >
+
+              <button
+                className="save-btn"
+                onClick={async () => {
+
+                  const { data: oldAttendance } = await supabase
+                    .from("attendance")
+                    .select("*")
+                    .eq("batch", selectedBatch)
+                    .eq("date", attendanceDate)
+
+                  const attendanceMap = {}
+
+                  oldAttendance.forEach(record => {
+                    attendanceMap[record.student_id] =
+                      record.status === "Present"
+                  })
+
+                  setAttendance(attendanceMap)
+
+                  setIsEditingAttendance(true)
+
+                  setShowEditAttendancePopup(false)
+
+                  setShowCalendar(false)
+
+                  setView("batch")
+
+                }}
+              >
+                Edit Attendance
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowEditAttendancePopup(false)
+                  setShowCalendar(false)
+                }}
+              >
+                Cancel
+              </button>
+
             </div>
 
           </div>

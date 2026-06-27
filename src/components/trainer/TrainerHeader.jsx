@@ -10,7 +10,7 @@ const TrainerHeader = () => {
     <>
       <header className="trainer-header">
         <div className="header-content">
-          <h3>MJK Academy Trainer</h3>
+          <h3>MJK ACADEMY TRAINER </h3>
 
           <button
             className="menu-btn"

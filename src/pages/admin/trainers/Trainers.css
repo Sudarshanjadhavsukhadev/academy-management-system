@@ -439,3 +439,18 @@
   width: 180px;
   text-align: center;
 }
+.batch-search-input{
+    width:100%;
+    padding:12px 15px;
+    margin:15px 0 20px;
+    border:1px solid #dbe3f0;
+    border-radius:10px;
+    font-size:15px;
+    outline:none;
+    transition:.3s;
+}
+
+.batch-search-input:focus{
+    border-color:#5b5df0;
+    box-shadow:0 0 0 4px rgba(91,93,240,.15);
+}
