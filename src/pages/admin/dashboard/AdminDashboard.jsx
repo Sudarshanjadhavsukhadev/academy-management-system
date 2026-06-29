@@ -92,6 +92,141 @@ function AdminDashboard() {
   const [allBatches, setAllBatches] =
     useState([])
 
+  const loadNotifications = async () => {
+
+
+
+    const { data, error } = await supabase
+
+      .from("notifications")
+
+      .select("*")
+
+      .order("created_at", { ascending: false })
+
+
+
+    if (error) {
+
+      console.error("Notification error:", error)
+
+      return
+
+    }
+
+
+
+    if (data) {
+
+      const clearedAt = localStorage.getItem("notificationsClearedAt")
+
+
+
+      const removed = JSON.parse(
+
+        localStorage.getItem("removedNotifications") || "[]"
+
+      )
+
+
+
+      const messages = data
+
+        .filter(n => {
+
+
+
+          if (removed.includes(n.message)) return false   // ⭐⭐ VERY IMPORTANT
+
+
+
+          if (!clearedAt) return true
+
+
+
+          return new Date(n.created_at) > new Date(clearedAt)
+
+
+
+        })
+
+        .map(n => ({
+          id: n.id,
+          message: n.message
+        }))
+
+      setNotifications(prev => {
+
+
+
+        const merged = [...prev]
+
+
+
+        messages.forEach(msg => {
+
+
+
+          if (removed.includes(msg.message)) return
+
+
+
+          if (!merged.some(n => n.id === msg.id)) {
+            merged.push(msg)
+          }
+
+
+
+        })
+
+
+
+        return merged
+
+      })
+
+      if (messages.length > 0) {
+
+
+
+        const latestMessage = messages[0]
+
+        const lastShown = localStorage.getItem("lastToast")
+
+
+
+        if (latestMessage !== lastShown) {
+
+
+
+          setToast(latestMessage.message)
+
+
+
+          localStorage.setItem("lastToast", latestMessage.message)
+
+
+
+          setTimeout(() => {
+
+            setToast(null)
+
+          }, 7000)
+
+
+
+        }
+
+
+
+      }
+
+    }
+
+
+
+  }
+
   useEffect(() => {
 
     const removed = JSON.parse(
@@ -469,73 +604,6 @@ function AdminDashboard() {
   }, [])
   useEffect(() => {
 
-    const loadNotifications = async () => {
-
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .order("created_at", { ascending: false })
-
-      if (error) {
-        console.error("Notification error:", error)
-        return
-      }
-
-      if (data) {
-        const clearedAt = localStorage.getItem("notificationsClearedAt")
-
-        const removed = JSON.parse(
-          localStorage.getItem("removedNotifications") || "[]"
-        )
-
-        const messages = data
-          .filter(n => {
-
-            if (removed.includes(n.message)) return false   // ⭐⭐ VERY IMPORTANT
-
-            if (!clearedAt) return true
-
-            return new Date(n.created_at) > new Date(clearedAt)
-
-          })
-          .map(n => n.message)
-        setNotifications(prev => {
-
-          const merged = [...prev]
-
-          messages.forEach(msg => {
-
-            if (removed.includes(msg)) return
-
-            if (!merged.includes(msg)) {
-              merged.push(msg)
-            }
-
-          })
-
-          return merged
-        })
-        if (messages.length > 0) {
-
-          const latestMessage = messages[0]
-          const lastShown = localStorage.getItem("lastToast")
-
-          if (latestMessage !== lastShown) {
-
-            setToast(latestMessage)
-
-            localStorage.setItem("lastToast", latestMessage)
-
-            setTimeout(() => {
-              setToast(null)
-            }, 7000)
-
-          }
-
-        }
-      }
-
-    }
 
     loadNotifications()
 
@@ -554,34 +622,35 @@ function AdminDashboard() {
         },
         (payload) => {
 
-          // If notification is deleted
-          if (payload.eventType === "DELETE") {
+          console.log("Realtime Payload:", payload)
 
-            loadNotifications()
+          if (payload.eventType === "INSERT") {
 
-            return
+            const notification = {
+              id: payload.new.id,
+              message: payload.new.message
+            }
+
+            setNotifications(prev => {
+
+              if (prev.some(n => n.id === notification.id))
+                return prev
+
+              return [notification, ...prev]
+
+            })
+
+            setToast(notification.message)
+
+            setTimeout(() => {
+              setToast(null)
+            }, 3000)
+
           }
 
-          // Only react to INSERT
-          if (payload.eventType !== "INSERT") return
-
-          const message = payload.new.message
-
-          setNotifications(prev => {
-
-            if (prev.includes(message)) return prev
-
-            if (removedNotifications.includes(message)) return prev
-
-            return [message, ...prev]
-
-          })
-
-          setToast(message)
-
-          setTimeout(() => {
-            setToast(null)
-          }, 3000)
+          if (payload.eventType === "DELETE") {
+            loadNotifications()
+          }
 
         }
       )
@@ -664,23 +733,17 @@ function AdminDashboard() {
   }, [])
   const clearNotifications = async () => {
 
-    const confirmClear = window.confirm(
-      "Are you sure you want to permanently delete all notifications?"
-    )
-
-    if (!confirmClear) return
-
     const { error } = await supabase
       .from("notifications")
       .delete()
-      .neq("id", 0)
+      .not("id", "is", null)
 
     if (error) {
-      alert(error.message)
+      console.error(error)
       return
     }
 
-    await loadNotifications()
+    setNotifications([])
     setRemovedNotifications([])
     setShowNotifications(false)
     setToast(null)
@@ -689,11 +752,6 @@ function AdminDashboard() {
     localStorage.removeItem("notificationsClearedToday")
     localStorage.removeItem("notificationsClearedAt")
     localStorage.removeItem("lastToast")
-
-    showSystemMessage(
-      "Notifications deleted permanently",
-      "success"
-    )
 
   }
   const showSystemMessage = (text, type = "info") => {
@@ -782,26 +840,20 @@ batch_name
     setRevenueList(uniquePayments);
   };
 
-  const removeSingleNotification = (index) => {
+  const removeSingleNotification = async (id) => {
 
-    const notif = notifications[index]
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("id", id)
 
-    const removed = JSON.parse(
-      localStorage.getItem("removedNotifications") || "[]"
-    )
-
-    const updatedRemoved = [...removed, notif]
-
-    localStorage.setItem(
-      "removedNotifications",
-      JSON.stringify(updatedRemoved)
-    )
-
-    // ✅ ADD THIS LINE
-    setRemovedNotifications(updatedRemoved)
+    if (error) {
+      console.error(error)
+      return
+    }
 
     setNotifications(prev =>
-      prev.filter((_, i) => i !== index)
+      prev.filter(item => item.id !== id)
     )
 
   }
@@ -1495,20 +1547,20 @@ status
                       <span
                         onClick={() => {
 
-                          if (note.includes("trainer registration")) {
+                          if (note.message.includes("trainer registration")) {
                             setActiveTab("trainers")
                             setShowNotifications(false)
                           }
 
                         }}
                       >
-                        {note}
+                        {note.message}
                       </span>
 
 
                       <button
                         className="notif-close"
-                        onClick={() => removeSingleNotification(index)}
+                        onClick={() => removeSingleNotification(note.id)}
                       >
                         ✖
                       </button>
@@ -1690,11 +1742,7 @@ status
                       <button
                         onClick={async () => {
 
-                          const confirmDelete = window.confirm(
-                            "Are you sure you want to delete this manual revenue entry?"
-                          )
 
-                          if (!confirmDelete) return
 
                           await supabase
                             .from("manual_revenue")
@@ -1705,10 +1753,7 @@ status
                           await fetchLast12MonthsRevenue()
                           await fetchManualRevenueHistory()
 
-                          showSystemMessage(
-                            "Manual revenue deleted successfully",
-                            "success"
-                          )
+
 
                         }}
                         style={{

@@ -21,7 +21,8 @@ ChartJS.register(
   Legend
 )
 import TrainerHeader from "../../../components/trainer/TrainerHeader"
-import { useEffect, useState } from "react"
+
+import { useEffect, useState, useRef } from "react"
 import { supabase } from "../../../services/supabase"
 import "./TrainerDashboard.css"
 import CameraPopup from "../../../components/trainer/CameraPopup";
@@ -42,12 +43,44 @@ const TrainerDashboard = () => {
   const [cameraMode, setCameraMode] = useState("signin");
   const [capturedImage, setCapturedImage] = useState(null)
   const [batchSearch, setBatchSearch] = useState("")
+  const [attendanceSearch, setAttendanceSearch] = useState("")
   const [showCalendar, setShowCalendar] = useState(false)
   const [attendanceDate, setAttendanceDate] = useState("")
   const [selectedAttendanceDate, setSelectedAttendanceDate] = useState("")
   const [systemMessage, setSystemMessage] = useState(null)
   const [isEditingAttendance, setIsEditingAttendance] = useState(false)
   const [showEditAttendancePopup, setShowEditAttendancePopup] = useState(false)
+  const inactivityTimer = useRef(null)
+  const resetInactivityTimer = () => {
+
+
+
+    clearTimeout(inactivityTimer.current)
+
+
+
+    inactivityTimer.current = setTimeout(async () => {
+
+
+
+      alert("Session expired due to inactivity.")
+
+
+
+      await supabase.auth.signOut()
+
+
+
+      window.location.href = "/trainer/login"
+
+
+
+    }, 15 * 60 * 1000) // 15 minutes
+
+
+
+  }
+
   const fetchTrainerData = async () => {
 
     const { data: authData } = await supabase.auth.getUser()
@@ -181,6 +214,34 @@ const TrainerDashboard = () => {
     return () => {
       supabase.removeChannel(batchChannel)
       supabase.removeChannel(trainerChannel)
+    }
+
+  }, [])
+
+  useEffect(() => {
+
+    resetInactivityTimer()
+
+    const events = [
+      "mousemove",
+      "mousedown",
+      "keydown",
+      "touchstart",
+      "scroll"
+    ]
+
+    events.forEach(event =>
+      window.addEventListener(event, resetInactivityTimer)
+    )
+
+    return () => {
+
+      clearTimeout(inactivityTimer.current)
+
+      events.forEach(event =>
+        window.removeEventListener(event, resetInactivityTimer)
+      )
+
     }
 
   }, [])
@@ -412,6 +473,11 @@ const TrainerDashboard = () => {
     const batchStudents = students.filter(
       s => s.batch_list?.includes(selectedBatch)
     )
+    const filteredAttendanceStudents = batchStudents.filter(student =>
+      student.name
+        .toLowerCase()
+        .includes(attendanceSearch.toLowerCase())
+    )
     return (
       <div className="trainer-dashboard">
 
@@ -467,9 +533,22 @@ const TrainerDashboard = () => {
 
         {batchTab === "attendance" && (
           <>
+            <div className="attendance-search">
+
+              <input
+                type="text"
+                placeholder="🔍 Search Student..."
+                value={attendanceSearch}
+                onChange={(e) =>
+                  setAttendanceSearch(e.target.value)
+                }
+              />
+
+            </div>
+
             <div className="attendance-grid">
 
-              {batchStudents.map((student) => (
+              {filteredAttendanceStudents.map((student) => (
 
                 <div
                   key={student.id}
