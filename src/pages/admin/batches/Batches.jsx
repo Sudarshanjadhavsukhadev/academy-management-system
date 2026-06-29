@@ -232,13 +232,17 @@ function Batches({ searchStudent }) {
       console.log("Student Last Payment =", student.last_payment_date);
 
       const lastPayment =
-        latestFee?.payment_date ??
-        student.last_payment_date ??
-        null;
+        student.payment_reset
+          ? null
+          : (
+            latestFee?.payment_date ??
+            student.last_payment_date ??
+            null
+          );
 
       return {
         ...student,
-        latestFee,
+        latestFee: student.payment_reset ? null : latestFee,
         last_payment_date: lastPayment
       };
 
@@ -548,6 +552,21 @@ function Batches({ searchStudent }) {
     fetchLastAttendance(selectedBatch.name)
 
   }, [selectedBatch?.id])
+
+  useEffect(() => {
+    if (!searchStudent) return;
+
+    const row = document.getElementById(
+      `student-${searchStudent.id}`
+    );
+
+    if (row) {
+      row.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+    }
+  }, [batchStudents, searchStudent]);
 
   const loadBatches = async () => {
 
@@ -1183,16 +1202,18 @@ function Batches({ searchStudent }) {
                     .update({
                       payment_reset: true,
                       fee_month: null,
-                      advance_note: null
+                      advance_note: null,
+                      last_payment_date: null,
+                      fees_status: null
                     })
                     .eq("batch", selectedBatch.name)
                     .eq("branch", selectedBatch.branch)
-                    .not("last_payment_date", "is", null)
+
 
                   if (error) {
-                    console.log(error)
-                    alert("Failed to reset batch fees")
-                    return
+                    console.error(error);
+                    alert("Failed to reset batch fees");
+                    return;
                   }
 
                   await fetchBatchStudents(selectedBatch.name)
@@ -1265,13 +1286,19 @@ function Batches({ searchStudent }) {
                   <tbody>
                     {activeStudents.map((student) => (
                       <tr
+                        id={`student-${student.id}`}
                         key={student.id}
                         className={
-                          student.status === "disabled"
-                            ? "disabled-row"
-                            : student.fees_status === "Paid"
-                              ? "paid-row"
-                              : ""
+                          searchStudent?.id === student.id
+                            ? "highlight-student"
+                            : student.status === "disabled"
+                              ? "disabled-row"
+                              : (
+                                !student.payment_reset &&
+                                student.fees_status === "Paid"
+                              )
+                                ? "paid-row"
+                                : ""
                         }
                       >
 
@@ -1437,17 +1464,49 @@ function Batches({ searchStudent }) {
                               setEditingStudent({
                                 ...student,
 
-                                activity: Array.isArray(student.activity)
-                                  ? student.activity
-                                  : student.activity
-                                    ? [student.activity]
-                                    : [],
+                                activity: (() => {
+                                  if (Array.isArray(student.activity)) {
+                                    return student.activity;
+                                  }
 
-                                batch_list: Array.isArray(student.batch_list)
-                                  ? student.batch_list
-                                  : student.batch
-                                    ? [student.batch]
-                                    : [],
+                                  if (typeof student.activity === "string") {
+                                    try {
+                                      const parsed = JSON.parse(student.activity);
+
+                                      if (Array.isArray(parsed)) {
+                                        return parsed;
+                                      }
+
+                                      return [student.activity];
+                                    } catch {
+                                      return [student.activity];
+                                    }
+                                  }
+
+                                  return [];
+                                })(),
+
+                                batch_list: (() => {
+                                  if (Array.isArray(student.batch_list)) {
+                                    return student.batch_list;
+                                  }
+
+                                  if (typeof student.batch_list === "string") {
+                                    try {
+                                      const parsed = JSON.parse(student.batch_list);
+
+                                      if (Array.isArray(parsed)) {
+                                        return parsed;
+                                      }
+
+                                      return [student.batch_list];
+                                    } catch {
+                                      return [student.batch_list];
+                                    }
+                                  }
+
+                                  return student.batch ? [student.batch] : [];
+                                })(),
                               })
                             }
                           >
@@ -2474,9 +2533,7 @@ function Batches({ searchStudent }) {
                       onChange={(e) =>
                         setEditingStudent({
                           ...editingStudent,
-                          branch: e.target.value,
-                          batch: "",
-                          batch_list: []
+                          branch: e.target.value
                         })
                       }
                     >
@@ -2517,16 +2574,14 @@ function Batches({ searchStudent }) {
                     >
                       <option value="">Select Batch</option>
 
-                      {allBatches
-                        .filter(batch => batch.branch === editingStudent.branch)
-                        .map(batch => (
-                          <option
-                            key={batch.id}
-                            value={batch.name}
-                          >
-                            {batch.name}
-                          </option>
-                        ))}
+                      {allBatches.map(batch => (
+                        <option
+                          key={batch.id}
+                          value={batch.name}
+                        >
+                          {batch.name}
+                        </option>
+                      ))}
                     </select>
 
                     <div className="selected-activities">
@@ -3035,33 +3090,11 @@ function Batches({ searchStudent }) {
 
 
 
-                  const invalidBatch = (confirmSaveStudent.batch_list || []).find(batchName => {
 
 
 
-                    const batch = allBatches.find(b => b.name === batchName);
 
 
-
-                    return batch && batch.branch !== confirmSaveStudent.branch;
-
-
-
-                  });
-
-
-
-                  if (invalidBatch) {
-
-                    alert(
-
-                      `"${invalidBatch}" does not belong to the selected branch.`
-
-                    );
-
-                    return;
-
-                  }
 
 
 

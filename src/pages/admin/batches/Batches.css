@@ -1580,3 +1580,17 @@ select:focus {
 .disabled-row {
   background: #fee2e2;
 }
+
+.highlight-student{
+    background:#fff8c5 !important;
+    animation: blinkStudent 0.8s infinite alternate;
+}
+
+@keyframes blinkStudent{
+    from{
+        background:#fff8c5;
+    }
+    to{
+        background:#ffd54f;
+    }
+}
