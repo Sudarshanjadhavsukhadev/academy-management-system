@@ -537,7 +537,7 @@ const TrainerDashboard = () => {
 
               <input
                 type="text"
-                placeholder="🔍 Search Student..."
+                placeholder=" Search Student..."
                 value={attendanceSearch}
                 onChange={(e) =>
                   setAttendanceSearch(e.target.value)
