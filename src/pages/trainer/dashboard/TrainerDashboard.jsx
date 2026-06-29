@@ -24,6 +24,7 @@ import TrainerHeader from "../../../components/trainer/TrainerHeader"
 import { useEffect, useState } from "react"
 import { supabase } from "../../../services/supabase"
 import "./TrainerDashboard.css"
+import CameraPopup from "../../../components/trainer/CameraPopup";
 
 const TrainerDashboard = () => {
   const [trainer, setTrainer] = useState(null)
@@ -32,6 +33,14 @@ const TrainerDashboard = () => {
   const [view, setView] = useState("dashboard")
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [attendance, setAttendance] = useState({})
+  const [batchTab, setBatchTab] = useState("attendance")
+  const [trainerStatus, setTrainerStatus] = useState(null)
+  const [isSignedIn, setIsSignedIn] = useState(false)
+  const [signInTime, setSignInTime] = useState("")
+  const [signOutTime, setSignOutTime] = useState("")
+  const [showCamera, setShowCamera] = useState(false)
+  const [cameraMode, setCameraMode] = useState("signin");
+  const [capturedImage, setCapturedImage] = useState(null)
   const [batchSearch, setBatchSearch] = useState("")
   const [showCalendar, setShowCalendar] = useState(false)
   const [attendanceDate, setAttendanceDate] = useState("")
@@ -86,7 +95,34 @@ const TrainerDashboard = () => {
       .from("students")
       .select("*")
       .ilike("status", "active")
-    setStudents(studentData || [])
+
+    const { data: feeData } = await supabase
+      .from("student_fees")
+      .select("*")
+
+    const studentsWithFees = (studentData || []).map(student => {
+
+      const matchedFees = feeData.filter(
+        fee => String(fee.student_id) === String(student.id)
+      )
+
+      const latestFee = matchedFees.sort(
+        (a, b) =>
+          new Date(b.payment_date) - new Date(a.payment_date)
+      )[0]
+
+      return {
+        ...student,
+        latestFee,
+        last_payment_date:
+          latestFee?.payment_date ||
+          student.last_payment_date ||
+          null
+      }
+
+    })
+
+    setStudents(studentsWithFees)
   }
   useEffect(() => {
 
@@ -185,7 +221,7 @@ const TrainerDashboard = () => {
       .eq("batch", selectedBatch)
       .eq("date", dateToSave)
 
-    if (existing && existing.length > 0) {
+    if (existing && existing.length > 0 && !isEditingAttendance) {
       showSystemMessage("Attendance already marked for this date", "warning")
       return
     }
@@ -204,9 +240,27 @@ const TrainerDashboard = () => {
 
     })
 
-    const { error } = await supabase
-      .from("attendance")
-      .insert(records)
+    let error;
+
+    if (isEditingAttendance) {
+
+      await supabase
+        .from("attendance")
+        .delete()
+        .eq("batch", selectedBatch)
+        .eq("date", dateToSave);
+
+      ({ error } = await supabase
+        .from("attendance")
+        .insert(records));
+
+    } else {
+
+      ({ error } = await supabase
+        .from("attendance")
+        .insert(records));
+
+    }
 
     if (error) {
       console.log(error)
@@ -231,6 +285,7 @@ const TrainerDashboard = () => {
       showSystemMessage("Attendance Saved Successfully ✅", "success")
 
       setAttendance({})
+      setIsEditingAttendance(false);
       setAttendanceDate("")
       setSelectedAttendanceDate("")
 
@@ -239,6 +294,22 @@ const TrainerDashboard = () => {
         setView("dashboard")
       }, 1000)
     }
+
+  }
+
+  const handleSignIn = async () => {
+
+    const now = new Date()
+
+    setCameraMode("signin");
+
+    setShowCamera(true)
+
+  }
+
+  const handleSignOut = async () => {
+    setCameraMode("signout");
+    setShowCamera(true);
 
   }
   const chartData = {
@@ -366,36 +437,240 @@ const TrainerDashboard = () => {
             {selectedBatch}
           </p>
           <p>Total Students: {batchStudents.length}</p>
+
         </div>
 
-        <div className="attendance-grid">
-          {batchStudents.map((student) => {
-            const isPresent = attendance[student.id]
+        <div className="batch-tabs">
 
-            return (
-              <div
-                key={student.id}
-                className={`seat-card 
-                ${attendance[student.id] === true ? "present" : ""} 
-                ${attendance[student.id] === false ? "absent" : ""}
-                `}
-                onClick={() => handleAttendanceClick(student.id)}
-              >
-                <span>{student.name}</span>
-              </div>
-            )
-          })}
-        </div>
-        <div className="calendar-actions">
-          <button className="calendar-confirm"
-            onClick={() => {
-              saveAttendance(selectedAttendanceDate)
-            }}
+          <button
+            className={batchTab === "trainer" ? "active-tab" : ""}
+            onClick={() => setBatchTab("trainer")}
           >
-            Save Attendance
+            Trainer Status
           </button>
+
+          <button
+            className={batchTab === "attendance" ? "active-tab" : ""}
+            onClick={() => setBatchTab("attendance")}
+          >
+            Attendance
+          </button>
+
+          <button
+            className={batchTab === "students" ? "active-tab" : ""}
+            onClick={() => setBatchTab("students")}
+          >
+            Student Details
+          </button>
+
         </div>
 
+        {batchTab === "attendance" && (
+          <>
+            <div className="attendance-grid">
+
+              {batchStudents.map((student) => (
+
+                <div
+                  key={student.id}
+                  className={`seat-card
+          ${attendance[student.id] === true ? "present" : ""}
+          ${attendance[student.id] === false ? "absent" : ""}
+          `}
+                  onClick={() => handleAttendanceClick(student.id)}
+                >
+
+                  <span>{student.name}</span>
+
+                </div>
+
+              ))}
+
+            </div>
+
+            <div className="calendar-actions">
+
+              <button
+                className="calendar-confirm"
+                onClick={() => saveAttendance(selectedAttendanceDate)}
+              >
+                Save Attendance
+              </button>
+
+            </div>
+
+          </>
+        )}
+
+        {batchTab === "trainer" && (
+
+          <div className="trainer-status-card">
+
+            <h2>Trainer Status</h2>
+
+            <div className="status-row">
+              <span>Batch</span>
+              <b>{selectedBatch}</b>
+            </div>
+
+            <div className="status-row">
+              <span>Date</span>
+              <b>{new Date().toLocaleDateString()}</b>
+            </div>
+
+            <div className="status-row">
+              <span>Current Time</span>
+              <b>{new Date().toLocaleTimeString()}</b>
+            </div>
+
+            <div className="status-row">
+              <span>Status</span>
+              <b
+                style={{
+                  color: isSignedIn ? "green" : "#ef4444"
+                }}
+              >
+
+                {isSignedIn ? "Signed In" : "Not Signed In"}
+
+              </b>
+            </div>
+
+            {signInTime && (
+
+              <div className="status-row">
+
+                <span>Sign In Time</span>
+
+                <b>{signInTime}</b>
+
+              </div>
+
+            )}
+            {signOutTime && (
+
+              <div className="status-row">
+
+                <span>Sign Out Time</span>
+
+                <b>{signOutTime}</b>
+
+              </div>
+
+            )}
+
+            <div className="trainer-action-buttons">
+
+              <button
+                className="signin-btn"
+                onClick={handleSignIn}
+                disabled={isSignedIn}
+              >
+
+                {isSignedIn ? "Signed In" : "Sign In"}
+
+              </button>
+
+              <button
+                className="signout-btn"
+                disabled={!isSignedIn}
+                onClick={handleSignOut}
+              >
+
+                Sign Out
+
+              </button>
+
+            </div>
+
+          </div>
+
+        )}
+
+        {batchTab === "students" && (
+
+          <div className="excel-table-container">
+
+            <table className="excel-table">
+
+              <thead>
+                <tr>
+                  <th className="col-sr">Sr.</th>
+                  <th className="col-name">Name</th>
+                  <th className="col-date">Join Date</th>
+                  <th className="col-fees">Fees</th>
+
+                  <th className="col-status">Status</th>
+                </tr>
+              </thead>
+
+              <tbody>
+
+                {batchStudents.map((student, index) => (
+
+                  <tr key={student.id}>
+
+                    <td>{index + 1}</td>
+
+                    <td>{student.name}</td>
+
+                    <td>{student.join_date || "-"}</td>
+
+                    <td>₹{student.fees || "-"}</td>
+
+
+
+                    <td>
+                      {
+                        student.latestFee
+                          ? "Paid"
+                          : "Pending"
+                      }
+                    </td>
+
+                  </tr>
+
+                ))}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        )}
+        {showCamera && (
+
+          <CameraPopup
+            onClose={() => setShowCamera(false)}
+
+            onCapture={(img) => {
+
+              const now = new Date();
+
+              setCapturedImage(img);
+
+              if (cameraMode === "signin") {
+
+                setSignInTime(now.toLocaleTimeString());
+
+                setIsSignedIn(true);
+
+              } else {
+
+                setSignOutTime(now.toLocaleTimeString());
+
+                setIsSignedIn(false);
+
+              }
+
+              setShowCamera(false);
+
+            }}
+
+          />
+
+        )}
       </div>
     )
   }
@@ -596,6 +871,8 @@ const TrainerDashboard = () => {
           </div>
         </div>
       )}
+
+
       {systemMessage && (
         <div className={`system-message ${systemMessage.type}`}>
           {systemMessage.text}

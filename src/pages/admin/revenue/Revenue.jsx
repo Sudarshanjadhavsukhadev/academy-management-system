@@ -18,15 +18,14 @@ function Revenue() {
     const { data, error } = await supabase
       .from("student_fees")
       .select(`
-    id,
-    student_id,
-    student_name,
-    amount_paid,
-    payment_date,
-    month,
-    year,
-    status
-  `)
+id,
+student_id,
+student_name,
+batch_name,
+amount_paid,
+payment_date,
+status
+`)
       .eq("status", "Paid")
       .order("payment_date", { ascending: false })
 
@@ -44,7 +43,7 @@ function Revenue() {
 
         ; (data || []).forEach((item) => {
           const key =
-            `${item.student_id || item.student_name}-${item.month}-${item.year}`
+            `${item.student_id}-${item.batch_name}-${item.payment_date}`;
 
           if (!seen.has(key)) {
             seen.add(key)
@@ -93,7 +92,7 @@ function Revenue() {
       "Join Date": "-",
       "Last Paid": payment.payment_date || "-",
       "Fees": `₹${payment.amount_paid || 0}`,
-      "Batch": "Student Fees",
+      "Batch": payment.batch_name || "-",
       "Branch": "Auto"
     }))
 
@@ -377,7 +376,7 @@ function Revenue() {
                   </td>
 
                   <td style={tdStyle}>
-                    Student Fees
+                    {payment.batch_name || "-"}
                   </td>
 
                   <td style={tdStyle}>

@@ -60,14 +60,13 @@ function Reports() {
     const { data: paidFeesRaw } = await supabase
       .from("student_fees")
       .select(`
-    student_id,
-    student_name,
-    amount_paid,
-    month,
-    year,
-    status,
-    payment_date
-  `)
+student_id,
+student_name,
+batch_name,
+amount_paid,
+payment_date,
+status
+`)
       .eq("status", "Paid")
 
     // Remove duplicate payments for same student in same month/year
@@ -76,7 +75,7 @@ function Reports() {
 
       ; (paidFeesRaw || []).forEach((row) => {
         const key =
-          `${row.student_id || row.student_name}-${row.month}-${row.year}`
+          `${row.student_id}-${row.batch_name}-${row.payment_date}`;
 
         if (!seen.has(key)) {
           seen.add(key)
@@ -90,13 +89,6 @@ function Reports() {
 
     const totalStudents = students?.length || 0
 
-    const totalRevenue =
-      (paidFees || []).reduce((sum, row) => {
-        return sum + (Number(row.amount_paid) || 0)
-      }, 0) +
-      (manualRevenue || []).reduce((sum, row) => {
-        return sum + (Number(row.amount) || 0)
-      }, 0)
 
     const { data: trainers } = await supabase
       .from("trainers")
@@ -106,14 +98,9 @@ function Reports() {
       return sum + (Number(t.salary) || 0)
     }, 0)
 
-    const netProfit = totalRevenue - trainerSalary
 
-    setSummary([
-      { title: "Total Revenue", value: `₹${totalRevenue}` },
-      { title: "Total Students", value: totalStudents },
-      { title: "Trainer Payout", value: `₹${trainerSalary}` },
-      { title: "Net Profit", value: `₹${netProfit}` },
-    ])
+
+
 
     // last 12 months (1 Year)
     // ===== LAST 12 MONTH REVENUE (FIXED BARS) =====
@@ -137,9 +124,10 @@ function Reports() {
 
     // fill revenue correctly
     (paidFees || []).forEach((row) => {
-      if (!row.month || !row.year) return
 
-      const d = new Date(`${row.month} 1, ${row.year}`)
+      if (!row.payment_date) return;
+
+      const d = new Date(row.payment_date);
 
       const diffMonths =
         (today.getFullYear() - d.getFullYear()) * 12 +
@@ -169,6 +157,21 @@ function Reports() {
       }
 
     })
+
+    // Total revenue of the last 12 months
+    const totalRevenue = values.reduce(
+      (sum, value) => sum + value,
+      0
+    );
+
+    const netProfit = totalRevenue - trainerSalary;
+
+    setSummary([
+      { title: "Last 12 Months Revenue", value: `₹${totalRevenue}` },
+      { title: "Total Students", value: totalStudents },
+      { title: "Trainer Payout", value: `₹${trainerSalary}` },
+      { title: "Net Profit", value: `₹${netProfit}` },
+    ]);
 
     setMonthlyRevenue({
       labels,

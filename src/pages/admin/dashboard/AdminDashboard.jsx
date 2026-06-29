@@ -80,6 +80,7 @@ function AdminDashboard() {
 
   const [studentsList, setStudentsList] = useState([])
   const [revenueList, setRevenueList] = useState([])
+  const [revenueSearch, setRevenueSearch] = useState("");
   const DB_LIMIT = 500 * 1024 * 1024
 
   const [showAssignBatchPopup, setShowAssignBatchPopup] =
@@ -217,19 +218,33 @@ function AdminDashboard() {
     // STUDENT FEES REVENUE (ACTUAL PAYMENTS)
     // ======================================
     const now = new Date()
-    const currentMonth = now.toLocaleString("en-US", {
-      month: "long",
-    })
-    const currentYear = now.getFullYear()
+
+
+    const startOfMonth = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1
+    )
+
+    const endOfMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      1
+    )
 
     const { data: paidFees } = await supabase
       .from("student_fees")
-      .select(
-        "student_id, student_name, amount_paid, month, year, status"
-      )
-      .eq("month", currentMonth)
-      .eq("year", currentYear)
+      .select(`
+    student_id,
+    student_name,
+    batch_name,
+    amount_paid,
+    payment_date,
+    status
+  `)
       .eq("status", "Paid")
+      .gte("payment_date", startOfMonth.toISOString().split("T")[0])
+      .lt("payment_date", endOfMonth.toISOString().split("T")[0])
 
     // Remove duplicate payments for same student in same month/year
     const uniquePaidFees = []
@@ -237,7 +252,7 @@ function AdminDashboard() {
 
       ; (paidFees || []).forEach((row) => {
         const key =
-          `${row.student_id || row.student_name}-${row.month}-${row.year}`
+          `${row.student_id}-${row.batch_name}-${row.payment_date}`;
 
         if (!seen.has(key)) {
           seen.add(key)
@@ -533,15 +548,25 @@ function AdminDashboard() {
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "notifications",
         },
         (payload) => {
 
+          // If notification is deleted
+          if (payload.eventType === "DELETE") {
+
+            loadNotifications()
+
+            return
+          }
+
+          // Only react to INSERT
+          if (payload.eventType !== "INSERT") return
+
           const message = payload.new.message
 
-          // update notification list
           setNotifications(prev => {
 
             if (prev.includes(message)) return prev
@@ -552,7 +577,6 @@ function AdminDashboard() {
 
           })
 
-          // show toast instantly
           setToast(message)
 
           setTimeout(() => {
@@ -640,33 +664,38 @@ function AdminDashboard() {
   }, [])
   const clearNotifications = async () => {
 
-    await supabase
+    const confirmClear = window.confirm(
+      "Are you sure you want to permanently delete all notifications?"
+    )
+
+    if (!confirmClear) return
+
+    const { error } = await supabase
       .from("notifications")
       .delete()
       .neq("id", 0)
 
-    localStorage.setItem(
-      "removedNotifications",
-      JSON.stringify(notifications)
-    )
-    localStorage.setItem(
-      "notificationsClearedToday",
-      new Date().toDateString()
-    )
-    // ✅ ADD THIS LINE (IMPORTANT)
-    setRemovedNotifications(notifications)
+    if (error) {
+      alert(error.message)
+      return
+    }
 
-    setNotifications([])
+    await loadNotifications()
+    setRemovedNotifications([])
     setShowNotifications(false)
+    setToast(null)
 
+    localStorage.removeItem("removedNotifications")
+    localStorage.removeItem("notificationsClearedToday")
+    localStorage.removeItem("notificationsClearedAt")
     localStorage.removeItem("lastToast")
 
-    localStorage.setItem(
-      "notificationsClearedAt",
-      new Date().toISOString()
+    showSystemMessage(
+      "Notifications deleted permanently",
+      "success"
     )
-  }
 
+  }
   const showSystemMessage = (text, type = "info") => {
 
     setSystemMessage({ text, type })
@@ -691,6 +720,20 @@ function AdminDashboard() {
 
     setStudentsList(data || [])
   }
+
+  const today = new Date();
+
+  const startOfMonth = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    1
+  );
+
+  const endOfMonth = new Date(
+    today.getFullYear(),
+    today.getMonth() + 1,
+    1
+  );
   const fetchRevenueDetails = async () => {
     const today = new Date();
 
@@ -703,17 +746,17 @@ function AdminDashboard() {
     const { data, error } = await supabase
       .from("student_fees")
       .select(`
-      id,
-      student_id,
-      student_name,
-      amount_paid,
-      payment_date,
-      month,
-      year,
-      status
-    `)
-      .eq("month", currentMonth)
-      .eq("year", currentYear)
+id,
+student_id,
+student_name,
+amount_paid,
+payment_date,
+month,
+year,
+batch_name
+`)
+      .gte("payment_date", startOfMonth.toISOString().split("T")[0])
+      .lt("payment_date", endOfMonth.toISOString().split("T")[0])
       .eq("status", "Paid")
       .order("payment_date", { ascending: false });
 
@@ -728,7 +771,7 @@ function AdminDashboard() {
 
     (data || []).forEach((item) => {
       const key =
-        `${item.student_id || item.student_name}-${item.month}-${item.year}`;
+        `${item.student_id}-${item.batch_name}-${item.payment_date}`;
 
       if (!seen.has(key)) {
         seen.add(key);
@@ -878,77 +921,18 @@ function AdminDashboard() {
     setAvailableYears(years)
 
   }
-  const fetchLifetimeRevenue = async () => {
 
-    const { data } = await supabase
-      .from("students")
-      .select("fees")
-
-    const total = (data || []).reduce(
-      (sum, s) => sum + (Number(s.fees) || 0),
-      0
-    )
-
-    setRevenueResult({
-      type: "Lifetime",
-      amount: total
-    })
-
-  }
-  const fetchMonthlyRevenue = async () => {
-
-    if (selectedMonth === "") {
-      alert("Please select month")
-      return
-    }
-
-    const monthNumber = Number(selectedMonth)
-
-    const { data } = await supabase
-      .from("students")
-      .select("fees, fee_month")
-
-    const total = (data || [])
-      .filter(s => {
-        if (!s.last_payment_date) return false
-
-        const m = new Date(s.last_payment_date).getMonth()
-        return m === monthNumber
-      })
-      .reduce((sum, s) => sum + (Number(s.fees) || 0), 0)
-
-    setRevenueResult({
-      type: "Monthly",
-      amount: total
-    })
-
-  }
-  const fetchYearlyRevenue = async () => {
-
-    if (!selectedYear) {
-      alert("Please select year")
-      return
-    }
-
-    const { data } = await supabase
-      .from("students")
-      .select("fees, created_at")
-
-    const total = (data || [])
-      .filter(s => new Date(s.last_payment_date).getFullYear() == selectedYear)
-      .reduce((sum, s) => sum + (Number(s.fees) || 0), 0)
-
-    setRevenueResult({
-      type: "Yearly",
-      amount: total
-    })
-
-  }
   const fetchLast12MonthsRevenue = async () => {
 
     const { data } = await supabase
       .from("student_fees")
-      .select("amount_paid, payment_date, status")
+      .select(`
+student_id,
+batch_name,
+amount_paid,
+payment_date,
+status
+`)
 
     const { data: manualRevenue } = await supabase
       .from("manual_revenue")
@@ -965,29 +949,41 @@ function AdminDashboard() {
     }
 
     // Student fee revenue
-    ; (data || []).forEach(row => {
-      if (!row.payment_date) return
-      if (row.status !== "Paid") return
+    ;
+    const seen = new Set();
 
-      const d = new Date(row.payment_date)
+    (data || []).forEach((row) => {
+
+      if (!row.payment_date) return;
+      if (row.status !== "Paid") return;
+
+      const uniqueKey =
+        `${row.student_id}-${row.batch_name}-${row.payment_date}`;
+
+      if (seen.has(uniqueKey)) return;
+
+      seen.add(uniqueKey);
+
+      const d = new Date(row.payment_date);
+
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+
+      if (monthsMap.hasOwnProperty(key)) {
+        monthsMap[key] += Number(row.amount_paid || 0);
+      }
+
+    });
+    // Manual revenue
+    ; (manualRevenue || []).forEach(r => {
+      if (!r.payment_date) return
+
+      const d = new Date(r.payment_date)
       const key = `${d.getFullYear()}-${d.getMonth()}`
 
       if (monthsMap.hasOwnProperty(key)) {
-        monthsMap[key] += Number(row.amount_paid || 0)
+        monthsMap[key] += Number(r.amount || 0)
       }
     })
-
-      // Manual revenue
-      ; (manualRevenue || []).forEach(r => {
-        if (!r.payment_date) return
-
-        const d = new Date(r.payment_date)
-        const key = `${d.getFullYear()}-${d.getMonth()}`
-
-        if (monthsMap.hasOwnProperty(key)) {
-          monthsMap[key] += Number(r.amount || 0)
-        }
-      })
 
     // Final chart data
     const result = Object.entries(monthsMap).map(([key, value]) => {
@@ -1847,40 +1843,88 @@ function AdminDashboard() {
             }}
           >
             <h3>Fees Collection Details</h3>
+            <input
+              type="text"
+              placeholder="Search Student..."
+              value={revenueSearch}
+              onChange={(e) => setRevenueSearch(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                margin: "20px 0",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                fontSize: "15px"
+              }}
+            />
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "3fr 2fr 2fr 1fr",
+                fontWeight: "bold",
+                padding: "12px",
+                background: "#f3f4f6",
+                borderRadius: "8px",
+                marginBottom: "10px"
+              }}
+            >
+              <div>Student Name</div>
+              <div>Batch</div>
+              <div>Last Paid</div>
+              <div>Amount</div>
+            </div>
 
             {revenueList.length === 0 ? (
               <p>No payments found.</p>
             ) : (
-              revenueList.map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    padding: "12px",
-                    marginBottom: "10px",
-                    background: "#f9fafb",
-                    borderRadius: "8px",
-                    display: "flex",
-                    justifyContent: "space-between"
-                  }}
-                >
-                  <div>
-                    <strong>
-                      {item.student_name || "Unknown Student"}
-                    </strong>
+              revenueList
+                .filter(item =>
+                  item.student_name
+                    ?.toLowerCase()
+                    .includes(revenueSearch.toLowerCase())
+                )
+                .map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "3fr 2fr 2fr 1fr",
+                      alignItems: "center",
+                      padding: "14px 12px",
+                      borderBottom: "1px solid #e5e7eb"
+                    }}
+                  >
+                    <div>
+                      <strong>{item.student_name}</strong>
+                    </div>
 
                     <div
                       style={{
-                        fontSize: "12px",
-                        color: "#6b7280"
+                        fontSize: "13px",
+                        color: "#374151",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis"
+                      }}
+                      title={item.batch_name}
+                    >
+                      {item.batch_name}
+                    </div>
+                    <div>
+                      {item.payment_date}
+                    </div>
+
+                    <div
+                      style={{
+                        color: "#16a34a",
+                        fontWeight: "bold"
                       }}
                     >
-                      {item.month} {item.year} • {item.payment_date}
+                      ₹{item.amount_paid}
                     </div>
                   </div>
-
-                  <strong>₹{item.amount_paid}</strong>
-                </div>
-              ))
+                ))
             )}
 
             <button
