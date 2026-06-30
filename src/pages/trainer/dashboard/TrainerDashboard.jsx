@@ -204,9 +204,25 @@ const TrainerDashboard = () => {
       )
       .subscribe()
 
+    const studentChannel = supabase
+      .channel("trainer-student-listener")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "students",
+        },
+        () => {
+          fetchTrainerData();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(batchChannel)
       supabase.removeChannel(trainerChannel)
+      supabase.removeChannel(studentChannel)
     }
 
   }, [])
@@ -351,7 +367,7 @@ const TrainerDashboard = () => {
 
   }
 
- 
+
   const chartData = {
     labels: batches,
     datasets: [
@@ -487,7 +503,7 @@ const TrainerDashboard = () => {
 
         <div className="batch-tabs">
 
-          
+
 
           <button
             className={batchTab === "attendance" ? "active-tab" : ""}
@@ -555,7 +571,7 @@ const TrainerDashboard = () => {
           </>
         )}
 
-       
+
 
         {batchTab === "students" && (
 
