@@ -367,6 +367,10 @@ function AdminDashboard() {
       1
     )
 
+    console.log("NOW =", now);
+    console.log("START =", startOfMonth.toISOString().split("T")[0]);
+    console.log("END =", endOfMonth.toISOString().split("T")[0]);
+
     const { data: paidFees } = await supabase
       .from("student_fees")
       .select(`
@@ -378,9 +382,17 @@ function AdminDashboard() {
     status
   `)
       .eq("status", "Paid")
-      .gte("payment_date", startOfMonth.toISOString().split("T")[0])
-      .lt("payment_date", endOfMonth.toISOString().split("T")[0])
+      .eq(
+        "month",
+        now.toLocaleString("en-US", { month: "long" })
+      )
+      .eq("year", now.getFullYear())
+    console.log("Paid Fees:", paidFees);
 
+    console.log(
+      "Dashboard Revenue:",
+      paidFees?.reduce((sum, row) => sum + Number(row.amount_paid || 0), 0)
+    );
     // Remove duplicate payments for same student in same month/year
     const uniquePaidFees = []
     const seen = new Set()
@@ -782,15 +794,11 @@ function AdminDashboard() {
   const today = new Date();
 
   const startOfMonth = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    1
+    Date.UTC(today.getFullYear(), today.getMonth(), 1)
   );
 
   const endOfMonth = new Date(
-    today.getFullYear(),
-    today.getMonth() + 1,
-    1
+    Date.UTC(today.getFullYear(), today.getMonth() + 1, 1)
   );
   const fetchRevenueDetails = async () => {
     const today = new Date();

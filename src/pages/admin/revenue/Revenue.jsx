@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import * as XLSX from "xlsx"
 import { supabase } from "../../../services/supabase"
+import jsPDF from "jspdf";
 
 function Revenue() {
 
@@ -122,6 +123,42 @@ status
     )
 
   }
+
+  const downloadInvoice = (payment, index) => {
+
+    const doc = new jsPDF();
+
+    doc.setFontSize(18);
+    doc.text("MJK ACADEMY", 20, 20);
+
+    doc.setFontSize(14);
+    doc.text("Fee Payment Receipt", 20, 30);
+
+    doc.line(20, 35, 190, 35);
+
+    doc.setFontSize(12);
+
+    doc.text(`Invoice No : INV-${index + 1}`, 20, 50);
+
+    doc.text(`Student Name : ${payment.student_name}`, 20, 65);
+
+    doc.text(`Batch : ${payment.batch_name}`, 20, 80);
+
+    doc.text(`Payment Date : ${payment.payment_date}`, 20, 95);
+
+    doc.text(`Amount Paid : ₹${payment.amount_paid}`, 20, 110);
+
+    doc.text(`Status : ${payment.status}`, 20, 125);
+
+    doc.text("Branch : SALUNKE VIHAR BRANCH", 20, 140);
+
+    doc.line(20, 150, 190, 150);
+
+    doc.text("Thank You For Your Payment", 20, 165);
+
+    doc.save(`Invoice_INV-${index + 1}.pdf`);
+
+  };
 
   return (
     <div
@@ -304,7 +341,7 @@ status
               <th style={thStyle}>Fees</th>
               <th style={thStyle}>Batch</th>
               <th style={thStyle}>Branch</th>
-
+              <th style={thStyle}>Invoice</th>
             </tr>
 
           </thead>
@@ -315,7 +352,7 @@ status
 
               <tr>
                 <td
-                  colSpan="7"
+                  colSpan="8"
                   style={{
                     padding: "30px",
                     textAlign: "center"
@@ -381,6 +418,23 @@ status
 
                   <td style={tdStyle}>
                     Auto
+                  </td>
+                  <td style={tdStyle}>
+
+                    <button
+                      onClick={() => downloadInvoice(payment, index)}
+                      style={{
+                        background: "#4f46e5",
+                        color: "#fff",
+                        border: "none",
+                        padding: "8px 14px",
+                        borderRadius: "8px",
+                        cursor: "pointer"
+                      }}
+                    >
+                      Download
+                    </button>
+
                   </td>
                 </tr>
 

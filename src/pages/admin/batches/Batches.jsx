@@ -16,9 +16,9 @@ import * as XLSX from "xlsx"
 import { supabase } from "../../../services/supabase"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-
-
-
+import StudentsTable from "../../../components/admin/batches/StudentsTable";
+import PaymentPopup from "../../../components/admin/batches/PaymentPopup";
+import StudentProfile from "../../../components/admin/batches/StudentProfile";
 import "./Batches.css"
 
 ChartJS.register(
@@ -1054,6 +1054,314 @@ function Batches({ searchStudent }) {
     setShowAttendancePopup(false)
   }
 
+  const handlePaymentSave = async () => {
+
+
+    if (!paymentDate) {
+
+      alert("Please select date")
+
+      return
+
+    }
+
+
+
+    const selectedPaymentDate = new Date(paymentDate)
+
+
+
+    const year = selectedPaymentDate.getFullYear()
+
+
+
+    const month = String(
+
+      selectedPaymentDate.getMonth() + 1
+
+    ).padStart(2, "0")
+
+
+
+    const day = String(
+
+      selectedPaymentDate.getDate()
+
+    ).padStart(2, "0")
+
+
+
+    const formattedDate = `${year}-${month}-${day}`
+
+    const paymentMonth = `${year}-${month}`
+
+
+
+    // ✅ PREVENT DOUBLE PAYMENT FOR SAME MONTH
+
+
+
+    const monthName = selectedPaymentDate.toLocaleString(
+
+      "en-US",
+
+      { month: "long" }
+
+    );
+
+
+
+
+
+
+
+    const { data: existingFee } = await supabase
+
+      .from("student_fees")
+
+      .select("id")
+
+      .eq("student_id", paymentStudent.id)
+
+      .eq("batch_name", selectedBatch.name)
+
+      .eq("month", monthName)
+
+      .eq("year", Number(year))
+
+      .maybeSingle();
+
+
+
+
+
+    console.log("Duplicate Result:", existingFee);
+
+    console.log("Student ID:", paymentStudent.id);
+
+    console.log("Batch:", selectedBatch.name);
+
+    console.log("Month:", monthName);
+
+    console.log("Year:", Number(year));
+
+
+
+    if (existingFee) {
+
+
+
+      setMessagePopup(
+
+        `⚠️ Fees already marked for ${monthName} ${year}`
+
+      );
+
+      return;
+
+    }
+
+
+
+    console.log("INSERT START");
+
+
+
+
+
+
+
+
+
+    // ALWAYS fetch student using the exact paymentStudent.id first
+
+    const { data: studentRow, error: studentLookupError } = await supabase
+
+      .from("students")
+
+      .select("id")
+
+      .eq("id", paymentStudent.id)
+
+      .maybeSingle()
+
+
+
+    if (studentLookupError) {
+
+      console.error("Student lookup failed:", studentLookupError)
+
+      alert("Unable to find student ID for revenue entry.")
+
+      return
+
+    }
+
+
+
+    if (!studentRow || !studentRow.id) {
+
+      alert("Student ID not found.")
+
+      return
+
+    }
+
+
+
+    const feeRecords = studentBatches.map((batchName) => ({
+
+      student_id: studentRow.id,
+
+      student_name: paymentStudent.name,
+
+
+
+      batch: batchName,
+
+      batch_name: batchName,
+
+
+
+      branch: paymentStudent.branch,
+
+
+
+      month: monthName,
+
+      year: Number(year),
+
+
+
+      amount_paid:
+        studentBatches.length > 1
+          ? Number(paymentAmount) / studentBatches.length
+          : Number(paymentAmount),
+
+
+      payment_date: formattedDate,
+
+      status: "Paid",
+
+      note: advanceText || null
+
+    }));
+
+
+
+    const { error: feeError } = await supabase
+
+      .from("student_fees")
+
+      .insert(feeRecords);
+
+
+
+    console.log("INSERT FINISHED");
+
+
+
+
+
+
+
+    if (feeError) {
+
+      console.error("student_fees insert error:", feeError)
+
+      alert(
+
+        "Payment saved on student, but failed to create revenue record.\n\n" +
+
+        feeError.message
+
+      )
+
+      return
+
+    }
+
+
+
+    if (feeError) {
+
+      console.error(feeError)
+
+      alert("Payment saved on student, but failed to create revenue record.")
+
+      return
+
+    }
+
+
+
+    const { error: studentUpdateError } = await supabase
+
+      .from("students")
+
+      .update({
+
+        last_payment_date: formattedDate,
+
+        payment_reset: false,
+
+        fee_month: monthName,
+
+        fees_status: "Paid",
+
+        advance_note: advanceText || null
+
+      })
+
+      .eq("id", paymentStudent.id)
+
+
+
+    if (studentUpdateError) {
+
+      console.error(studentUpdateError)
+
+      alert(studentUpdateError.message)
+
+      return
+
+    }
+
+
+
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Wait a moment so Supabase finishes the delete
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+
+
+    await fetchBatchStudents(selectedBatch.name);
+
+    setMessagePopup("✅ Fees marked successfully");
+
+
+    setPaymentStudent(null);
+
+    setPaymentDate(null);
+
+
+
+    window.dispatchEvent(new Event("paymentUpdated"));
+
+
+
+    setPaymentStudent(null)
+
+    setPaymentDate(null)
+
+    setAdvanceText("")
+    setPaymentAmount("")
+
+
+  }
+
   return (
     <div className="batches-page">
 
@@ -1197,7 +1505,10 @@ function Batches({ searchStudent }) {
                   if (!confirmReset) return
 
                   // ONLY RESET STUDENTS WHO ACTUALLY PAID
-                  const { error } = await supabase
+                  // Get every student in this batch (main batch OR batch_list)
+                  const studentsToReset = batchStudents.map(student => student.id);
+
+                  const { data, error } = await supabase
                     .from("students")
                     .update({
                       payment_reset: true,
@@ -1206,8 +1517,13 @@ function Batches({ searchStudent }) {
                       last_payment_date: null,
                       fees_status: null
                     })
-                    .eq("batch", selectedBatch.name)
-                    .eq("branch", selectedBatch.branch)
+                    .in("id", studentsToReset)
+                    .select();
+
+                  console.log("Rows Updated:", data);
+
+                  console.log("Rows updated:", data?.length);
+                  console.log(data);
 
 
                   if (error) {
@@ -1258,288 +1574,26 @@ function Batches({ searchStudent }) {
             </>
           )}
 
-
           {activeTab === "students" && (
-            <div className="students-list">
-
-              <h3>Students Enrolled</h3>
-
-              {batchStudents.length === 0 ? (
-                <p>No students in this batch</p>
-              ) : (
-                <table className="students-table">
-
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Joining Date</th>
-                      <th>Fees Assigned</th>
-
-                      <th>Paid On</th>
-                      <th>Last Paid</th>
-                      <th>Next Due</th>
-                      <th>Action</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {activeStudents.map((student) => (
-                      <tr
-                        id={`student-${student.id}`}
-                        key={student.id}
-                        className={
-                          searchStudent?.id === student.id
-                            ? "highlight-student"
-                            : student.status === "disabled"
-                              ? "disabled-row"
-                              : (
-                                !student.payment_reset &&
-                                student.fees_status === "Paid"
-                              )
-                                ? "paid-row"
-                                : ""
-                        }
-                      >
-
-                        <td>
-
-                          <div
-                            style={{
-                              display: "flex",
-                              flexDirection: "column"
-                            }}
-                          >
-
-                            <span>{student.name}</span>
-
-                            {student.advance_note && (
-                              <small
-                                style={{
-                                  color: "#22c55e",
-                                  fontWeight: "600",
-                                  marginTop: "4px"
-                                }}
-                              >
-                                {student.advance_note}
-                              </small>
-                            )}
-
-                          </div>
-
-                        </td>
-
-                        <td>{formatDate(student.join_date)}</td>
-
-                        <td>{student.fees || "-"}</td>
-
-
-
-                        <td>
-                          <button
-                            className="mark-fees-btn"
-                            disabled={student.status === "disabled"}
-                            onClick={() => {
-
-                              setPaymentStudent(student);
-
-                              setPaymentDate(new Date());
-
-                              const batches = student.batch_list || [student.batch];
-
-                              setStudentBatches(batches);
-
-                              const total =
-                                batches.length *
-                                Number(
-                                  student.batch_fees?.[selectedBatch.name] ||
-                                  student.fees ||
-                                  0
-                                );
-
-                              setTotalFees(total);
-
-                              // Admin can edit this amount
-                              setPaymentAmount(total.toString());
-
-                            }}
-                          >
-                            Mark Fees
-                          </button>
-                        </td>
-                        <td>
-                          {student.advance_note
-                            ? "-"
-                            : (
-                              student.payment_reset
-                                ? "-"
-                                : formatDate(
-                                  student.latestFee?.payment_date ||
-                                  student.last_payment_date
-                                )
-                            )
-                          }
-                        </td>
-                        <td>
-
-                          {student.advance_note
-                            ? "-"
-                            : (
-                              student.payment_reset
-                                ? (
-                                  (() => {
-
-                                    const due = getNextDueDate(student)
-
-                                    if (!due) return "-"
-
-                                    const today = new Date()
-
-                                    due.setHours(0, 0, 0, 0)
-                                    today.setHours(0, 0, 0, 0)
-
-                                    // ✅ overdue students should still show due
-                                    if (today > due) {
-                                      return formatDate(due)
-                                    }
-
-                                    // ✅ future due students hidden
-                                    return "-"
-
-                                  })()
-                                )
-                                : (
-                                  student.last_payment_date
-                                    ? formatDate(getNextDueDate(student))
-                                    : "-"
-                                )
-                            )
-                          }
-
-                        </td>
-                        <td className="action-buttons">
-
-                          {student.advance_note && (
-                            <button
-                              style={{
-                                background: "#ef4444",
-                                color: "white",
-                                border: "none",
-                                padding: "6px 10px",
-                                borderRadius: "6px",
-                                cursor: "pointer"
-                              }}
-                              onClick={async () => {
-                                await supabase
-                                  .from("students")
-                                  .update({
-                                    advance_note: null,
-                                    last_payment_date: null,
-                                    fee_month: null,
-                                    fees_status: null,
-                                    payment_reset: false
-                                  })
-                                  .eq("id", student.id)
-
-                                fetchBatchStudents(selectedBatch.name)
-                              }}
-                            >
-                              Remove Note
-                            </button>
-                          )}
-
-                          <button
-                            className="view-btn"
-                            onClick={() => {
-                              setViewStudent(student)
-                              fetchStudentAttendanceCalendar(student.id)
-                            }}
-                          >
-                            View
-                          </button>
-
-                          <button
-                            className="edit-btn"
-                            onClick={() =>
-                              setEditingStudent({
-                                ...student,
-
-                                activity: (() => {
-                                  if (Array.isArray(student.activity)) {
-                                    return student.activity;
-                                  }
-
-                                  if (typeof student.activity === "string") {
-                                    try {
-                                      const parsed = JSON.parse(student.activity);
-
-                                      if (Array.isArray(parsed)) {
-                                        return parsed;
-                                      }
-
-                                      return [student.activity];
-                                    } catch {
-                                      return [student.activity];
-                                    }
-                                  }
-
-                                  return [];
-                                })(),
-
-                                batch_list: (() => {
-                                  if (Array.isArray(student.batch_list)) {
-                                    return student.batch_list;
-                                  }
-
-                                  if (typeof student.batch_list === "string") {
-                                    try {
-                                      const parsed = JSON.parse(student.batch_list);
-
-                                      if (Array.isArray(parsed)) {
-                                        return parsed;
-                                      }
-
-                                      return [student.batch_list];
-                                    } catch {
-                                      return [student.batch_list];
-                                    }
-                                  }
-
-                                  return student.batch ? [student.batch] : [];
-                                })(),
-                              })
-                            }
-                          >
-                            Edit
-                          </button>
-
-                        </td>
-
-
-                        <td>
-                          {(() => {
-                            const status = student.status?.toLowerCase().trim()
-
-                            return (
-                              <button
-                                className={status === "active" ? "active-btn" : "disable-btn"}
-                                onClick={() => toggleStudentStatus(student)}
-                              >
-                                {status === "active" ? "Active" : "Disabled"}
-                              </button>
-                            )
-                          })()}
-                        </td>
-
-                      </tr>
-                    ))}
-                  </tbody>
-
-                </table>
-              )}
-
-            </div>
+            <StudentsTable
+              activeStudents={activeStudents}
+              searchStudent={searchStudent}
+              formatDate={formatDate}
+              selectedBatch={selectedBatch}
+              getNextDueDate={getNextDueDate}
+              setPaymentStudent={setPaymentStudent}
+              setPaymentDate={setPaymentDate}
+              setStudentBatches={setStudentBatches}
+              setTotalFees={setTotalFees}
+              setPaymentAmount={setPaymentAmount}
+              fetchStudentAttendanceCalendar={fetchStudentAttendanceCalendar}
+              setViewStudent={setViewStudent}
+              setEditingStudent={setEditingStudent}
+              toggleStudentStatus={toggleStudentStatus}
+              fetchBatchStudents={fetchBatchStudents}
+            />
           )}
+
           {activeTab === "attendance" && (
             <div className="students-list">
 
@@ -1809,92 +1863,14 @@ function Batches({ searchStudent }) {
         )
       }
 
-      {viewStudent && (
-        <div className="branch-popup-overlay">
-          <div className="student-profile-popup">
-
-            {/* LEFT SIDE */}
-            <div className="student-info">
-
-              <h2>Student Profile</h2>
-
-              <img
-                src={viewStudent.profile_photo}
-                alt="student"
-                className="student-photo"
-              />
-
-              <div className="student-details-grid">
-
-                <p><strong>Name:</strong> {viewStudent.name}</p>
-                <div>
-                  <strong>Activity:</strong>
-
-                  <div className="selected-activities" style={{ marginTop: "5px" }}>
-                    {(Array.isArray(viewStudent.activity)
-                      ? viewStudent.activity
-                      : [viewStudent.activity]
-                    ).map((act) => (
-                      <div key={act} className="activity-chip">
-                        {act}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <p><strong>Branch:</strong> {viewStudent.branch}</p>
-                <div>
-                  <strong>Batches:</strong>
-
-                  <div
-                    className="selected-activities"
-                    style={{ marginTop: "5px" }}
-                  >
-                    {(viewStudent.batch_list || [viewStudent.batch]).map((batch) => (
-                      <div
-                        key={batch}
-                        className="activity-chip"
-                      >
-                        {batch}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <p><strong>Joining Date:</strong> {viewStudent.join_date}</p>
-                <p><strong>WhatsApp:</strong> {viewStudent["Whatsapp Number"]}</p>
-
-                <p><strong>Fees:</strong> ₹{viewStudent.fees}</p>
-                <p><strong>Date of Birth:</strong> {viewStudent.dob}</p>
-
-                <p><strong>Reference:</strong> {viewStudent.reference}</p>
-                <p><strong>Status:</strong> {viewStudent.status}</p>
-
-              </div>
-              <button
-                className="popup-close-btn"
-                onClick={() => setViewStudent(null)}
-              >
-                ✕
-              </button>
-
-            </div>
-
-            {/* RIGHT SIDE */}
-            <div className="student-chart">
-
-              <h3>Attendance Chart</h3>
-
-              <Calendar
-                tileClassName={getTileClass}
-                tileContent={getTileContent}
-              />
-
-            </div>
-
-          </div>
-        </div>
-      )}
+      <StudentProfile
+        viewStudent={viewStudent}
+        setViewStudent={setViewStudent}
+        studentAttendanceDates={studentAttendanceDates}
+        selectedBatch={selectedBatch}
+        getTileClass={getTileClass}
+        getTileContent={getTileContent}
+      />
       {/* ADD BRANCH POPUP */}
       {
         showAddBranchPopup && (
@@ -2141,273 +2117,7 @@ function Batches({ searchStudent }) {
           </div>
         )
       }
-      {paymentStudent && (
-        <div className="branch-popup-overlay">
-          <div className="branch-popup">
 
-            <h3>Select Payment Date</h3>
-
-            <div
-              style={{
-                background: "#f8f8f8",
-                padding: "15px",
-                borderRadius: "10px",
-                marginBottom: "15px"
-              }}
-            >
-              <p>
-                <strong>Student:</strong> {paymentStudent.name}
-              </p>
-
-              <p>
-                <strong>Total Activities:</strong> {studentBatches.length}
-              </p>
-
-              <p>
-                <strong>Total Fees:</strong> ₹{totalFees}
-              </p>
-
-              {studentBatches.length > 1 ? (
-                <>
-                  <label
-                    style={{
-                      display: "block",
-                      marginTop: "12px",
-                      marginBottom: "5px"
-                    }}
-                  >
-                    Amount Received
-                  </label>
-
-                  <input
-                    type="number"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    placeholder="Enter Amount"
-                    style={{
-                      width: "100%",
-                      padding: "10px",
-                      borderRadius: "8px",
-                      border: "1px solid #ccc"
-                    }}
-                  />
-                </>
-              ) : (
-                <p
-                  style={{
-                    marginTop: "12px",
-                    fontWeight: "bold",
-                    color: "#16a34a"
-                  }}
-                >
-                  Fees Amount: ₹{paymentStudent.fees}
-                </p>
-              )}
-            </div>
-
-            <div className="payment-calendar">
-              <Calendar
-                value={paymentDate}
-                onChange={(date) => setPaymentDate(date)}
-                showNeighboringMonth={false}
-              />
-            </div>
-
-            <input
-              type="text"
-              placeholder="Example: Fees Paid Till Dec 2026"
-              value={advanceText}
-              onChange={(e) => setAdvanceText(e.target.value)}
-              style={{
-                width: "250px",
-                padding: "10px",
-                marginTop: "15px",
-                borderRadius: "8px",
-                border: "1px solid #ddd"
-              }}
-            />
-
-            <div style={{ marginTop: "15px" }}>
-
-              <button
-                className="add-btn"
-
-
-
-                onClick={async () => {
-                  if (!paymentDate) {
-                    alert("Please select date")
-                    return
-                  }
-
-                  const selectedPaymentDate = new Date(paymentDate)
-
-                  const year = selectedPaymentDate.getFullYear()
-
-                  const month = String(
-                    selectedPaymentDate.getMonth() + 1
-                  ).padStart(2, "0")
-
-                  const day = String(
-                    selectedPaymentDate.getDate()
-                  ).padStart(2, "0")
-
-                  const formattedDate = `${year}-${month}-${day}`
-                  const paymentMonth = `${year}-${month}`
-
-                  // ✅ PREVENT DOUBLE PAYMENT FOR SAME MONTH
-
-                  const monthName = selectedPaymentDate.toLocaleString(
-                    "en-US",
-                    { month: "long" }
-                  );
-
-
-
-                  const { data: existingFee } = await supabase
-                    .from("student_fees")
-                    .select("id")
-                    .eq("student_id", paymentStudent.id)
-                    .eq("batch_name", selectedBatch.name)
-                    .eq("month", monthName)
-                    .eq("year", Number(year))
-                    .maybeSingle();
-
-
-                  console.log("Duplicate Result:", existingFee);
-                  console.log("Student ID:", paymentStudent.id);
-                  console.log("Batch:", selectedBatch.name);
-                  console.log("Month:", monthName);
-                  console.log("Year:", Number(year));
-
-                  if (existingFee) {
-
-                    setMessagePopup(
-                      `⚠️ Fees already marked for ${monthName} ${year}`
-                    );
-                    return;
-                  }
-
-                  console.log("INSERT START");
-
-
-
-
-                  // ALWAYS fetch student using the exact paymentStudent.id first
-                  const { data: studentRow, error: studentLookupError } = await supabase
-                    .from("students")
-                    .select("id")
-                    .eq("id", paymentStudent.id)
-                    .maybeSingle()
-
-                  if (studentLookupError) {
-                    console.error("Student lookup failed:", studentLookupError)
-                    alert("Unable to find student ID for revenue entry.")
-                    return
-                  }
-
-                  if (!studentRow || !studentRow.id) {
-                    alert("Student ID not found.")
-                    return
-                  }
-
-                  const feeRecords = studentBatches.map((batchName) => ({
-                    student_id: studentRow.id,
-                    student_name: paymentStudent.name,
-
-                    batch: batchName,
-                    batch_name: batchName,
-
-                    branch: paymentStudent.branch,
-
-                    month: monthName,
-                    year: Number(year),
-
-                    amount_paid:
-                      studentBatches.length > 1
-                        ? Number(paymentAmount) / studentBatches.length
-                        : Number(paymentStudent.fees),
-
-                    payment_date: formattedDate,
-                    status: "Paid",
-                    note: advanceText || null
-                  }));
-
-                  const { error: feeError } = await supabase
-                    .from("student_fees")
-                    .insert(feeRecords);
-
-                  console.log("INSERT FINISHED");
-
-
-
-                  if (feeError) {
-                    console.error("student_fees insert error:", feeError)
-                    alert(
-                      "Payment saved on student, but failed to create revenue record.\n\n" +
-                      feeError.message
-                    )
-                    return
-                  }
-
-                  if (feeError) {
-                    console.error(feeError)
-                    alert("Payment saved on student, but failed to create revenue record.")
-                    return
-                  }
-
-                  const { error: studentUpdateError } = await supabase
-                    .from("students")
-                    .update({
-                      last_payment_date: formattedDate,
-                      payment_reset: false,
-                      fee_month: monthName,
-                      fees_status: "Paid",
-                      advance_note: advanceText || null
-                    })
-                    .eq("id", paymentStudent.id)
-
-                  if (studentUpdateError) {
-                    console.error(studentUpdateError)
-                    alert(studentUpdateError.message)
-                    return
-                  }
-
-                  await new Promise(resolve => setTimeout(resolve, 300));
-                  // Wait a moment so Supabase finishes the delete
-                  await new Promise(resolve => setTimeout(resolve, 500));
-
-                  await fetchBatchStudents(selectedBatch.name);
-
-                  setPaymentStudent(null);
-                  setPaymentDate(null);
-
-                  window.dispatchEvent(new Event("paymentUpdated"));
-
-                  setPaymentStudent(null)
-                  setPaymentDate(null)
-                  setAdvanceText("")
-                }}
-              >
-                Save
-              </button>
-
-              <button
-                style={{ marginLeft: "10px" }}
-                onClick={() => {
-                  setPaymentStudent(null)
-                  setPaymentDate(null)   // 🔥 VERY IMPORTANT
-                }}
-              >
-                Cancel
-              </button>
-
-            </div>
-
-          </div>
-        </div>
-      )
-      }
       {
         messagePopup && (
           <div className="message-popup">
@@ -2679,12 +2389,6 @@ function Batches({ searchStudent }) {
                       <option value="Other">Other</option>
                     </select>
                   </div>
-
-
-
-
-
-
                 </div>
 
               </div>
@@ -3063,9 +2767,6 @@ function Batches({ searchStudent }) {
                   borderRadius: "8px"
                 }}
                 onClick={async () => {
-
-
-
                   // Student must have at least one activity
 
                   if ((confirmSaveStudent.activity || []).length === 0) {
@@ -3075,9 +2776,6 @@ function Batches({ searchStudent }) {
                     return;
 
                   }
-
-
-
                   // Student must have at least one batch
 
                   if ((confirmSaveStudent.batch_list || []).length === 0) {
@@ -3087,17 +2785,6 @@ function Batches({ searchStudent }) {
                     return;
 
                   }
-
-
-
-
-
-
-
-
-
-
-
                   // Find the complete batch object
 
                   const selectedBatchRows = allBatches.filter(batch =>
@@ -3105,13 +2792,7 @@ function Batches({ searchStudent }) {
                     (confirmSaveStudent.batch_list || []).includes(batch.name)
 
                   );
-
-
-
                   console.log("Selected Batch Rows:", selectedBatchRows);
-
-
-
                   const { error } = await supabase
 
                     .from("students")
@@ -3127,15 +2808,9 @@ function Batches({ searchStudent }) {
 
 
                       batch: confirmSaveStudent.batch_list?.[0] || "",
-
-
-
                       batch_list: confirmSaveStudent.batch_list || [],
-
                       join_date: confirmSaveStudent.join_date,
-
                       fees: Number(confirmSaveStudent.fees),
-
                       batch_fees: (confirmSaveStudent.batch_list || []).reduce(
                         (obj, batchName) => {
                           obj[batchName] = Number(confirmSaveStudent.fees);
@@ -3143,7 +2818,6 @@ function Batches({ searchStudent }) {
                         },
                         {}
                       ),
-
                       dob: confirmSaveStudent.dob,
 
                       reference: confirmSaveStudent.reference,
@@ -3153,52 +2827,23 @@ function Batches({ searchStudent }) {
                       ["Whatsapp Number"]: confirmSaveStudent["Whatsapp Number"]
 
                     })
-
                     .eq("id", confirmSaveStudent.id)
-
-
-
                   if (!error) {
 
-
-
-                    // Refresh batches
-
                     const updatedBatches = await fetchBatches(selectedBranch);
-
-
-
                     // Find the student's new batch
 
                     const newBatch = updatedBatches.find(
-
                       batch => batch.name === confirmSaveStudent.batch_list?.[0]
-
                     );
-
-
-
                     if (newBatch) {
-
                       setSelectedBatch(newBatch);
-
                       await fetchBatchStudents(newBatch.name);
-
                     }
-
-
-
                     window.dispatchEvent(new Event("paymentUpdated"));
-
                     setConfirmSaveStudent(null);
-
-
                     setEditingStudent(null);
-
                   }
-
-
-
                 }}
               >
                 Yes Save
@@ -3275,6 +2920,24 @@ function Batches({ searchStudent }) {
           </div>
         </div>
       )}
+
+      <PaymentPopup
+        paymentStudent={paymentStudent}
+        paymentDate={paymentDate}
+        setPaymentDate={setPaymentDate}
+        studentBatches={studentBatches}
+        totalFees={totalFees}
+        paymentAmount={paymentAmount}
+        setPaymentAmount={setPaymentAmount}
+        advanceText={advanceText}
+        setAdvanceText={setAdvanceText}
+        selectedBatch={selectedBatch}
+        fetchBatchStudents={fetchBatchStudents}
+        setPaymentStudent={setPaymentStudent}
+        setMessagePopup={setMessagePopup}
+        handlePaymentSave={handlePaymentSave}
+      />
+
     </div >
   )
 }
