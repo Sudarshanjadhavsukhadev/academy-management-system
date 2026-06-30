@@ -25,7 +25,7 @@ import TrainerHeader from "../../../components/trainer/TrainerHeader"
 import { useEffect, useState, useRef } from "react"
 import { supabase } from "../../../services/supabase"
 import "./TrainerDashboard.css"
-import CameraPopup from "../../../components/trainer/CameraPopup";
+
 
 const TrainerDashboard = () => {
   const [trainer, setTrainer] = useState(null)
@@ -35,13 +35,6 @@ const TrainerDashboard = () => {
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [attendance, setAttendance] = useState({})
   const [batchTab, setBatchTab] = useState("attendance")
-  const [trainerStatus, setTrainerStatus] = useState(null)
-  const [isSignedIn, setIsSignedIn] = useState(false)
-  const [signInTime, setSignInTime] = useState("")
-  const [signOutTime, setSignOutTime] = useState("")
-  const [showCamera, setShowCamera] = useState(false)
-  const [cameraMode, setCameraMode] = useState("signin");
-  const [capturedImage, setCapturedImage] = useState(null)
   const [batchSearch, setBatchSearch] = useState("")
   const [attendanceSearch, setAttendanceSearch] = useState("")
   const [showCalendar, setShowCalendar] = useState(false)
@@ -358,21 +351,7 @@ const TrainerDashboard = () => {
 
   }
 
-  const handleSignIn = async () => {
-
-    const now = new Date()
-
-    setCameraMode("signin");
-
-    setShowCamera(true)
-
-  }
-
-  const handleSignOut = async () => {
-    setCameraMode("signout");
-    setShowCamera(true);
-
-  }
+ 
   const chartData = {
     labels: batches,
     datasets: [
@@ -508,12 +487,7 @@ const TrainerDashboard = () => {
 
         <div className="batch-tabs">
 
-          <button
-            className={batchTab === "trainer" ? "active-tab" : ""}
-            onClick={() => setBatchTab("trainer")}
-          >
-            Trainer Status
-          </button>
+          
 
           <button
             className={batchTab === "attendance" ? "active-tab" : ""}
@@ -581,90 +555,7 @@ const TrainerDashboard = () => {
           </>
         )}
 
-        {batchTab === "trainer" && (
-
-          <div className="trainer-status-card">
-
-            <h2>Trainer Status</h2>
-
-            <div className="status-row">
-              <span>Batch</span>
-              <b>{selectedBatch}</b>
-            </div>
-
-            <div className="status-row">
-              <span>Date</span>
-              <b>{new Date().toLocaleDateString()}</b>
-            </div>
-
-            <div className="status-row">
-              <span>Current Time</span>
-              <b>{new Date().toLocaleTimeString()}</b>
-            </div>
-
-            <div className="status-row">
-              <span>Status</span>
-              <b
-                style={{
-                  color: isSignedIn ? "green" : "#ef4444"
-                }}
-              >
-
-                {isSignedIn ? "Signed In" : "Not Signed In"}
-
-              </b>
-            </div>
-
-            {signInTime && (
-
-              <div className="status-row">
-
-                <span>Sign In Time</span>
-
-                <b>{signInTime}</b>
-
-              </div>
-
-            )}
-            {signOutTime && (
-
-              <div className="status-row">
-
-                <span>Sign Out Time</span>
-
-                <b>{signOutTime}</b>
-
-              </div>
-
-            )}
-
-            <div className="trainer-action-buttons">
-
-              <button
-                className="signin-btn"
-                onClick={handleSignIn}
-                disabled={isSignedIn}
-              >
-
-                {isSignedIn ? "Signed In" : "Sign In"}
-
-              </button>
-
-              <button
-                className="signout-btn"
-                disabled={!isSignedIn}
-                onClick={handleSignOut}
-              >
-
-                Sign Out
-
-              </button>
-
-            </div>
-
-          </div>
-
-        )}
+       
 
         {batchTab === "students" && (
 
@@ -718,38 +609,7 @@ const TrainerDashboard = () => {
           </div>
 
         )}
-        {showCamera && (
 
-          <CameraPopup
-            onClose={() => setShowCamera(false)}
-
-            onCapture={(img) => {
-
-              const now = new Date();
-
-              setCapturedImage(img);
-
-              if (cameraMode === "signin") {
-
-                setSignInTime(now.toLocaleTimeString());
-
-                setIsSignedIn(true);
-
-              } else {
-
-                setSignOutTime(now.toLocaleTimeString());
-
-                setIsSignedIn(false);
-
-              }
-
-              setShowCamera(false);
-
-            }}
-
-          />
-
-        )}
       </div>
     )
   }
